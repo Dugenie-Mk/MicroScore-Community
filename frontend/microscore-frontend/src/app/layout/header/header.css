@@ -1,0 +1,15 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.header .logo {
+  font-weight: 700;
+}
+
+.header nav a {
+  margin-left: 1rem;
+}
