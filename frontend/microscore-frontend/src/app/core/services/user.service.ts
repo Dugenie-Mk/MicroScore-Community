@@ -4,7 +4,6 @@ import { Observable } from 'rxjs';
 
 import { User, UserRequest } from '../models/user.model';
 
-// SERVICE : centralise les appels HTTP vers le backend (user-service via l'api-gateway).
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private readonly http = inject(HttpClient);

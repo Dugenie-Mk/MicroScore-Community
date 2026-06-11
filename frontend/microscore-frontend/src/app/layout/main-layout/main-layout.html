@@ -1,0 +1,15 @@
+<div class="min-h-screen bg-gray-50 dark:bg-gray-950">
+  <app-sidebar />
+
+  <div
+    class="transition-[padding] duration-300 ease-in-out"
+    [class.lg:pl-72]="!layout.collapsed()"
+    [class.lg:pl-20]="layout.collapsed()"
+  >
+    <app-topbar />
+
+    <main class="mx-auto max-w-[1600px] p-4 sm:p-6">
+      <router-outlet />
+    </main>
+  </div>
+</div>

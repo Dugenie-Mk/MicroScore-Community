@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
 
-// SERVICE d'AUTHENTIFICATION : gere le token JWT (a brancher sur l'API plus tard).
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly tokenKey = 'microscore_token';
