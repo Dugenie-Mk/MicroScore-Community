@@ -1,0 +1,9 @@
+$kind: http-request
+url: http://localhost:8084/api/parametres-scoring
+method: POST
+body:
+  type: json
+  content: '{"blocCritere": "PROFIL_SOCIODEMOGRAPHIQUE", "nomCritere": "Situation
+    matrimoniale", "poidsCritere": 4.0, "actif": true, "description": "Statut
+    marital"}'
+order: 3000

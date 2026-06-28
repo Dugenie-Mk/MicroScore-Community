@@ -1,0 +1,10 @@
+$kind: http-request
+name: Créer paramètre - GarantieMatérielle
+url: ""
+method: POST
+body:
+  type: json
+  content: '{"blocCritere": "GARANTIES", "nomCritere": "Garantie matérielle",
+    "poidsCritere": 3.33, "actif": true, "description": "Bien mobilier ou
+    immobilier"}'
+order: 24000

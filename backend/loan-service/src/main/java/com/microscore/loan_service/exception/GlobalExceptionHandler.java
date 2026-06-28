@@ -1,4 +1,4 @@
-package com.microscore.scoring_service.exception;
+package com.microscore.loan_service.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,48 +12,26 @@ import java.util.List;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ScoreNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleScoreNotFound(ScoreNotFoundException ex) {
+    @ExceptionHandler(PretNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePretNotFound(PretNotFoundException ex) {
         ErrorResponse erreur = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .statut(HttpStatus.NOT_FOUND.value())
-                .erreur("Score non trouvé")
+                .erreur("Prêt non trouvé")
                 .message(ex.getMessage())
                 .build();
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(erreur);
     }
 
-    @ExceptionHandler(ParametreNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleParametreNotFound(ParametreNotFoundException ex) {
-        ErrorResponse erreur = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .statut(HttpStatus.NOT_FOUND.value())
-                .erreur("Paramètre de scoring non trouvé")
-                .message(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(erreur);
-    }
-
-    @ExceptionHandler(ScoringConfigurationException.class)
-    public ResponseEntity<ErrorResponse> handleScoringConfiguration(ScoringConfigurationException ex) {
+    @ExceptionHandler(PretDejaExistantException.class)
+    public ResponseEntity<ErrorResponse> handlePretDejaExistant(PretDejaExistantException ex) {
         ErrorResponse erreur = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .statut(HttpStatus.CONFLICT.value())
-                .erreur("Configuration du scoring invalide")
+                .erreur("Prêt déjà existant")
                 .message(ex.getMessage())
                 .build();
         return ResponseEntity.status(HttpStatus.CONFLICT).body(erreur);
-    }
-
-    @ExceptionHandler(DemandeScoringInvalideException.class)
-    public ResponseEntity<ErrorResponse> handleDemandeInvalide(DemandeScoringInvalideException ex) {
-        ErrorResponse erreur = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .statut(HttpStatus.BAD_REQUEST.value())
-                .erreur("Demande de scoring invalide")
-                .message(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erreur);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -81,15 +59,5 @@ public class GlobalExceptionHandler {
                 .message(ex.getMessage())
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(erreur);
-    }
-    @ExceptionHandler(LoanServiceUnavailableException.class)
-    public ResponseEntity<ErrorResponse> handleLoanServiceUnavailable(LoanServiceUnavailableException ex) {
-        ErrorResponse erreur = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .statut(HttpStatus.SERVICE_UNAVAILABLE.value())
-                .erreur("Service de prêt indisponible")
-                .message(ex.getMessage())
-                .build();
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(erreur);
     }
 }

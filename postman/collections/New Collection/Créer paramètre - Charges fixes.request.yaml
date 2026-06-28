@@ -1,0 +1,19 @@
+$kind: http-request
+url: ""
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"blocCritere\": \"PROFIL_SOCIODEMOGRAPHIQUE\",\r
+
+    \  \"nomCritere\": \"Âge\",\r
+
+    \  \"poidsCritere\": 4.0,\r
+
+    \  \"actif\": true,\r
+
+    \  \"description\": \"Critère âge du demandeur\"\r
+
+    }"
+order: 14000

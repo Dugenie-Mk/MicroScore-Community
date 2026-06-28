@@ -1,0 +1,20 @@
+$kind: http-request
+name: Créer paramètre - Flux de trésorerie de l'activité
+url: ""
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"blocCritere\": \"PROFIL_SOCIODEMOGRAPHIQUE\",\r
+
+    \  \"nomCritere\": \"Âge\",\r
+
+    \  \"poidsCritere\": 4.0,\r
+
+    \  \"actif\": true,\r
+
+    \  \"description\": \"Critère âge du demandeur\"\r
+
+    }"
+order: 13055
