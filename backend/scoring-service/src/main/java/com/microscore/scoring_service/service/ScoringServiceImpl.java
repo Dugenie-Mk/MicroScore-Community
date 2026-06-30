@@ -1,18 +1,23 @@
 package com.microscore.scoring_service.service;
 
+import com.microscore.scoring_service.client.LoanServiceClient;
 import com.microscore.scoring_service.dto.DemandeScoringRequest;
+import com.microscore.scoring_service.dto.EnregistrerScoreClientRequest;
 import com.microscore.scoring_service.dto.ScoreResponse;
 import com.microscore.scoring_service.entity.*;
 import com.microscore.scoring_service.exception.ScoreNotFoundException;
 import com.microscore.scoring_service.exception.ScoringConfigurationException;
 import com.microscore.scoring_service.mapper.ScoreMapper;
 import com.microscore.scoring_service.repository.ScoreRepository;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ScoringServiceImpl implements ScoringService {
@@ -20,6 +25,7 @@ public class ScoringServiceImpl implements ScoringService {
     private final ScoreRepository scoreRepository;
     private final ScoreMapper scoreMapper;
     private final ParametreDeScoringService parametreDeScoringService;
+    private final LoanServiceClient loanServiceClient;
 
     private static final String AGE = "Âge";
     private static final String SITUATION_MATRIMONIALE = "Situation matrimoniale";
@@ -53,6 +59,7 @@ public class ScoringServiceImpl implements ScoringService {
     private static final String REGULARITE_EPARGNE = "Régularité de l'épargne";
 
 
+    // ===================== MÉTHODE PRINCIPALE =====================
     @Override
     @Transactional
     public ScoreResponse calculerScore(Long pretId, DemandeScoringRequest request) {
@@ -76,6 +83,9 @@ public class ScoringServiceImpl implements ScoringService {
 
         Score scoreSauvegarde = scoreRepository.save(score);
 
+        // Appel best-effort à loan-service : un échec ne doit pas annuler le score déjà calculé
+        notifierLoanService(scoreSauvegarde);
+
         return scoreMapper.toResponse(scoreSauvegarde);
     }
 
@@ -96,6 +106,26 @@ public class ScoringServiceImpl implements ScoringService {
     }
 
 
+    // ===================== NOTIFICATION VERS LOAN-SERVICE =====================
+    private void notifierLoanService(Score score) {
+        try {
+            EnregistrerScoreClientRequest requeteLoanService = EnregistrerScoreClientRequest.builder()
+                    .idPret(score.getPretId())
+                    .idClient(score.getClientId())
+                    .scoreTotal(score.getScoreTotal())
+                    .build();
+
+            loanServiceClient.enregistrerScore(requeteLoanService);
+
+        } catch (FeignException ex) {
+            log.error("Échec de la transmission du score à loan-service pour le prêt id={}. " +
+                            "Le score reste enregistré dans scoring-service et devra être retransmis manuellement.",
+                    score.getPretId(), ex);
+        }
+    }
+
+
+    // ===================== BLOC 1 : PROFIL SOCIODÉMOGRAPHIQUE (20%) =====================
     private double calculerBlocProfilSociodemographique(DemandeScoringRequest req, Map<String, Double> poids) {
         double total = 0.0;
 
@@ -144,6 +174,7 @@ public class ScoringServiceImpl implements ScoringService {
     }
 
 
+    // ===================== BLOC 2 : CAPACITÉ DE REMBOURSEMENT (35%) =====================
     private double calculerBlocCapaciteRemboursement(DemandeScoringRequest req, Map<String, Double> poids) {
         double total = 0.0;
 
@@ -195,6 +226,7 @@ public class ScoringServiceImpl implements ScoringService {
     }
 
 
+    // ===================== BLOC 3 : MONTANT ET DURÉE DU PRÊT (15% + 15%) =====================
     private double calculerBlocMontantDuree(DemandeScoringRequest req, Map<String, Double> poids) {
         double total = 0.0;
 
@@ -220,6 +252,7 @@ public class ScoringServiceImpl implements ScoringService {
     }
 
 
+    // ===================== BLOC 4 : HISTORIQUE DE CRÉDIT (15%) =====================
     private double calculerBlocHistoriqueCredit(DemandeScoringRequest req, Map<String, Double> poids) {
         double total = 0.0;
 
@@ -257,6 +290,7 @@ public class ScoringServiceImpl implements ScoringService {
     }
 
 
+    // ===================== BLOC 5 : ACTIVITÉ ÉCONOMIQUE / BUSINESS (15%) =====================
     private double calculerBlocActiviteEconomique(DemandeScoringRequest req, Map<String, Double> poids) {
         double total = 0.0;
 
@@ -324,6 +358,7 @@ public class ScoringServiceImpl implements ScoringService {
     }
 
 
+    // ===================== BLOC 6 : GARANTIES ET COLLATÉRAUX (10%) =====================
     private double calculerBlocGaranties(DemandeScoringRequest req, Map<String, Double> poids) {
         double total = 0.0;
 
@@ -350,6 +385,7 @@ public class ScoringServiceImpl implements ScoringService {
     }
 
 
+    // ===================== BLOC 7 : FACTEURS COMPORTEMENTAUX ET QUALITATIFS (5%) =====================
     private double calculerBlocFacteursComportementaux(DemandeScoringRequest req, Map<String, Double> poids) {
         double total = 0.0;
 
@@ -366,6 +402,8 @@ public class ScoringServiceImpl implements ScoringService {
         return total;
     }
 
+
+    // ===================== MÉTHODES UTILITAIRES =====================
 
     private double getPoids(Map<String, Double> poids, String nomCritere) {
         Double valeur = poids.get(nomCritere);

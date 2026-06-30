@@ -1,6 +1,7 @@
 package com.microscore.loan_service.repository;
 
 import com.microscore.loan_service.entity.Pret;
+import com.microscore.loan_service.entity.StatutPret;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -11,4 +12,6 @@ public interface PretRepository extends JpaRepository<Pret, Long> {
     Optional<Pret> findByIdPret(Long idPret);
 
     List<Pret> findByIdClient(Long idClient);
+
+    List<Pret> findByStatut(StatutPret statut);
 }

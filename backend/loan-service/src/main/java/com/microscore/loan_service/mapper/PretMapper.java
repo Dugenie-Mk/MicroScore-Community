@@ -12,7 +12,9 @@ public class PretMapper {
                 .idPret(pret.getIdPret())
                 .idClient(pret.getIdClient())
                 .scoreTotal(pret.getScoreTotal())
+                .statut(pret.getStatut())
                 .dateEnregistrement(pret.getDateEnregistrement())
+                .dateDecision(pret.getDateDecision())
                 .build();
     }
 }

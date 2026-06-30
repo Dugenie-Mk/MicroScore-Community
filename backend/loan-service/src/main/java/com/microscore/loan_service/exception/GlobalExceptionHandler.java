@@ -60,4 +60,15 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(erreur);
     }
+
+    @ExceptionHandler(StatutInvalideException.class)
+    public ResponseEntity<ErrorResponse> handleStatutInvalide(StatutInvalideException ex) {
+        ErrorResponse erreur = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .statut(HttpStatus.BAD_REQUEST.value())
+                .erreur("Statut invalide")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erreur);
+    }
 }
