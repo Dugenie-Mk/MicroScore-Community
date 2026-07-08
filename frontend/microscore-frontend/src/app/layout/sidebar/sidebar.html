@@ -23,8 +23,8 @@
     >MicroScore</span>
   </div>
 
-  <nav class="flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-3 py-4">
-    @for (group of groups; track group.title) {
+ <nav class="flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-3 py-4">
+    @for (group of groups(); track group.title) {
       <div>
         <p
           class="max-h-8 overflow-hidden whitespace-nowrap px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400 transition-all duration-300 ease-in-out dark:text-gray-500"
@@ -34,7 +34,7 @@
         >
           {{ group.title }}
         </p>
-        <div class="space-y-1">
+       <div class="space-y-1">
           @for (item of group.items; track item.route) {
             <a
               [routerLink]="item.route"

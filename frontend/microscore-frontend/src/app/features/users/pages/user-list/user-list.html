@@ -1,0 +1,392 @@
+<div class="p-4 sm:p-6 lg:p-8">
+  <!-- Header -->
+  <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+        @if (isGestionnaire()) { Clients } @else { Utilisateurs }
+      </h1>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        @if (isGestionnaire()) {
+          {{ stats().clients }} client{{ stats().clients > 1 ? 's' : '' }}
+        } @else {
+          {{ stats().total }} utilisateur{{ stats().total > 1 ? 's' : '' }} inscrit{{ stats().total > 1 ? 's' : '' }}
+          @if (activeFilter() !== 'TOUS') {
+            <span> · Filtre : {{ activeFilter() | titlecase }}</span>
+          }
+        }
+      </p>
+    </div>
+    <button (click)="openCreateModal()" class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      @if (isGestionnaire()) { Nouveau client } @else { Nouvel utilisateur }
+    </button>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3" [class.lg:grid-cols-5]="!isGestionnaire()" [class.lg:grid-cols-3]="isGestionnaire()">
+    @if (isGestionnaire()) {
+      <div class="rounded-xl border border-blue-100 bg-blue-50/50 p-4 shadow-sm dark:border-blue-900/30 dark:bg-blue-950/20">
+        <p class="text-xs font-medium uppercase tracking-wide text-blue-600 dark:text-blue-400">Clients</p>
+        <p class="mt-1.5 text-2xl font-bold text-blue-700 dark:text-blue-300">{{ stats().clients }}</p>
+      </div>
+      <div class="rounded-xl border border-green-100 bg-green-50/50 p-4 shadow-sm dark:border-green-900/30 dark:bg-green-950/20">
+        <p class="text-xs font-medium uppercase tracking-wide text-green-600 dark:text-green-400">Actifs</p>
+        <p class="mt-1.5 text-2xl font-bold text-green-700 dark:text-green-300">{{ stats().actifs }}</p>
+      </div>
+      <div class="rounded-xl border border-amber-100 bg-amber-50/50 p-4 shadow-sm dark:border-amber-900/30 dark:bg-amber-950/20">
+        <p class="text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">En attente</p>
+        <p class="mt-1.5 text-2xl font-bold text-amber-700 dark:text-amber-300">{{ stats().enAttente }}</p>
+      </div>
+    } @else {
+      <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</p>
+        <p class="mt-1.5 text-2xl font-bold text-gray-900 dark:text-white">{{ stats().total }}</p>
+      </div>
+      <div class="rounded-xl border border-blue-100 bg-blue-50/50 p-4 shadow-sm dark:border-blue-900/30 dark:bg-blue-950/20">
+        <p class="text-xs font-medium uppercase tracking-wide text-blue-600 dark:text-blue-400">Clients</p>
+        <p class="mt-1.5 text-2xl font-bold text-blue-700 dark:text-blue-300">{{ stats().clients }}</p>
+      </div>
+      <div class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 shadow-sm dark:border-emerald-900/30 dark:bg-emerald-950/20">
+        <p class="text-xs font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Gestionnaires</p>
+        <p class="mt-1.5 text-2xl font-bold text-emerald-700 dark:text-emerald-300">{{ stats().gestionnaires }}</p>
+      </div>
+      <div class="rounded-xl border border-purple-100 bg-purple-50/50 p-4 shadow-sm dark:border-purple-900/30 dark:bg-purple-950/20">
+        <p class="text-xs font-medium uppercase tracking-wide text-purple-600 dark:text-purple-400">Admins</p>
+        <p class="mt-1.5 text-2xl font-bold text-purple-700 dark:text-purple-300">{{ stats().admins }}</p>
+      </div>
+      <div class="rounded-xl border border-amber-100 bg-amber-50/50 p-4 shadow-sm dark:border-amber-900/30 dark:bg-amber-950/20">
+        <p class="text-xs font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">En attente</p>
+        <p class="mt-1.5 text-2xl font-bold text-amber-700 dark:text-amber-300">{{ stats().enAttente }}</p>
+      </div>
+    }
+  </div>
+
+  <!-- Search + Filters -->
+  <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="relative w-full sm:max-w-xs">
+      <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+      </svg>
+      <input
+        type="text"
+        placeholder="Rechercher un utilisateur…"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event); currentPage.set(1)"
+        class="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition-all duration-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-brand-400"
+      />
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      @for (filter of filters(); track filter.value) {
+        <button
+          (click)="setFilter(filter.value)"
+          class="rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-200"
+          [class.bg-brand-600!]="activeFilter() === filter.value"
+          [class.text-white!]="activeFilter() === filter.value"
+          [class.shadow-sm]="activeFilter() === filter.value"
+          [class.bg-gray-100]="activeFilter() !== filter.value"
+          [class.text-gray-600]="activeFilter() !== filter.value"
+          [class.hover:bg-gray-200]="activeFilter() !== filter.value"
+          [class.dark:bg-gray-800]="activeFilter() !== filter.value"
+          [class.dark:text-gray-300]="activeFilter() !== filter.value"
+          [class.dark:hover:bg-gray-700]="activeFilter() !== filter.value"
+        >
+          {{ filter.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
+        <thead>
+          <tr class="bg-gray-50 dark:bg-gray-800/50">
+            <th class="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 sm:px-6">Utilisateur</th>
+            <th class="hidden px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 md:table-cell md:px-6">Contact</th>
+            <th class="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 sm:px-6">Rôle</th>
+            <th class="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 sm:px-6">Statut</th>
+            <th class="px-4 py-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 sm:px-6">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+          @for (user of paginatedUsers(); track user.id) {
+            <tr class="group transition-colors duration-150 hover:bg-gray-50/80 dark:hover:bg-gray-800/40">
+              <!-- User info -->
+              <td class="px-4 py-4 sm:px-6">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold shadow-sm ring-2 ring-white dark:ring-gray-800"
+                    [class.bg-blue-100]="user.role === 'CLIENT'"
+                    [class.text-blue-700]="user.role === 'CLIENT'"
+                    [class.bg-emerald-100]="user.role === 'GESTIONNAIRE'"
+                    [class.text-emerald-700]="user.role === 'GESTIONNAIRE'"
+                    [class.bg-purple-100]="user.role === 'ADMIN'"
+                    [class.text-purple-700]="user.role === 'ADMIN'"
+                  >
+                    {{ getInitials(user.fullName) }}
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-sm font-semibold text-gray-900 dark:text-white">
+                      {{ user.fullName }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {{ user.email }}
+                    </div>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Contact -->
+              <td class="hidden px-4 py-4 md:table-cell md:px-6">
+                <div class="text-sm text-gray-700 dark:text-gray-300">{{ user.telephone }}</div>
+                @if (user.role === 'CLIENT' && user.cni) {
+                  <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">CNI : {{ user.cni }}</div>
+                }
+                @if (user.role === 'GESTIONNAIRE' && user.matricule) {
+                  <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Matricule : {{ user.matricule }}</div>
+                }
+                @if (user.role === 'ADMIN' && user.derniereConnexion) {
+                  <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Dernière connexion : {{ user.derniereConnexion }}</div>
+                }
+              </td>
+
+              <!-- Role -->
+              <td class="px-4 py-4 sm:px-6">
+                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getRoleBadgeClass(user.role) }}">
+                  @switch (user.role) {
+                    @case ('CLIENT') { Client }
+                    @case ('GESTIONNAIRE') { Gestionnaire }
+                    @case ('ADMIN') { Admin }
+                  }
+                </span>
+              </td>
+
+              <!-- Status -->
+              <td class="px-4 py-4 sm:px-6">
+                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getStatusBadgeClass(user.statut) }}">
+                  <span class="h-1.5 w-1.5 rounded-full"
+                    [class.bg-green-500]="user.statut === 'ACTIF'"
+                    [class.bg-red-500]="user.statut === 'BLOQUE'"
+                    [class.bg-amber-500]="user.statut === 'EN_ATTENTE'"
+                  ></span>
+                  {{ user.statut === 'EN_ATTENTE' ? 'En attente' : user.statut }}
+                </span>
+              </td>
+
+              <!-- Actions -->
+              <td class="px-4 py-4 text-right sm:px-6">
+                <div class="flex items-center justify-end gap-1">
+                  <a
+                    [routerLink]="['/users', user.id]"
+                    class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+                  >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                    </svg>
+                    Détails
+                  </a>
+
+                  <div class="relative">
+                    <button
+                      (click)="toggleMenu(user.id)"
+                      class="inline-flex items-center rounded-lg p-1.5 text-gray-400 transition-all duration-200 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                    >
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+                      </svg>
+                    </button>
+                    @if (menuOpenId() === user.id) {
+                      <div class="absolute right-0 z-20 mt-1 w-44 origin-top-right rounded-xl border border-gray-200 bg-white p-1 shadow-lg ring-1 ring-black/5 dark:border-gray-700 dark:bg-gray-800">
+                        <button
+                          (click)="toggleStatus(user)"
+                          class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                          @if (user.statut === 'ACTIF') {
+                            <svg class="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
+                            </svg>
+                            Bloquer
+                          } @else {
+                            <svg class="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                            Débloquer
+                          }
+                        </button>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="px-6 py-16 text-center">
+                <div class="flex flex-col items-center gap-3">
+                  <svg class="h-10 w-10 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="1.2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                  </svg>
+                  <div class="text-sm text-gray-500 dark:text-gray-400">Aucun utilisateur trouvé</div>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    @if (totalPages() > 1) {
+      <div class="flex items-center justify-between border-t border-gray-100 px-4 py-3 sm:px-6 dark:border-gray-800">
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          Page {{ currentPage() }} sur {{ totalPages() }}
+          <span class="hidden sm:inline"> · {{ filteredUsers().length }} résultat{{ filteredUsers().length > 1 ? 's' : '' }}</span>
+        </p>
+        <div class="flex items-center gap-1">
+          <button
+            (click)="goToPage(currentPage() - 1)"
+            [disabled]="currentPage() === 1"
+            class="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-gray-800"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          @for (p of [].constructor(totalPages()); track $index) {
+            <button
+              (click)="goToPage($index + 1)"
+              class="min-w-[2rem] rounded-lg px-2 py-1 text-xs font-semibold transition-all duration-200"
+              [class.bg-brand-600]="currentPage() === $index + 1"
+              [class.text-white]="currentPage() === $index + 1"
+              [class.text-gray-600]="currentPage() !== $index + 1"
+              [class.hover:bg-gray-100]="currentPage() !== $index + 1"
+              [class.dark:text-gray-300]="currentPage() !== $index + 1"
+              [class.dark:hover:bg-gray-800]="currentPage() !== $index + 1"
+            >
+              {{ $index + 1 }}
+            </button>
+          }
+          <button
+            (click)="goToPage(currentPage() + 1)"
+            [disabled]="currentPage() === totalPages()"
+            class="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-gray-800"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Create User Modal -->
+  @if (showCreateModal()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div class="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+        <div class="mb-6 flex items-center justify-between">
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white">Nouvel utilisateur</h2>
+          <button (click)="closeCreateModal()" class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom complet *</label>
+            <input
+              [ngModel]="newUser().fullName"
+              (ngModelChange)="newUser.set({...newUser(), fullName: $event})"
+              class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              placeholder="Ex: Ngana Michel"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email *</label>
+              <input
+                [ngModel]="newUser().email"
+                (ngModelChange)="newUser.set({...newUser(), email: $event})"
+                type="email"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                placeholder="email@exemple.com"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Téléphone</label>
+              <input
+                [ngModel]="newUser().telephone"
+                (ngModelChange)="newUser.set({...newUser(), telephone: $event})"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                placeholder="+237 XXX XXX XXX"
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rôle</label>
+            <div class="flex gap-2">
+              @for (r of (isGestionnaire() ? [{ value: 'CLIENT', label: 'Client' }] : [{ value: 'CLIENT', label: 'Client' }, { value: 'GESTIONNAIRE', label: 'Gestionnaire' }, { value: 'ADMIN', label: 'Admin' }]); track r.value) {
+                <button
+                  (click)="setRole(r.value)"
+                  class="flex-1 rounded-lg border-2 px-3 py-2 text-xs font-semibold transition-all duration-200"
+                  [class.border-brand-600]="newUser().role === r.value"
+                  [class.text-brand-700]="newUser().role === r.value"
+                  [class.bg-brand-50]="newUser().role === r.value"
+                  [class.border-gray-200]="newUser().role !== r.value"
+                  [class.text-gray-600]="newUser().role !== r.value"
+                  [class.hover:border-gray-300]="newUser().role !== r.value"
+                  [class.dark:border-gray-600]="newUser().role !== r.value"
+                  [class.dark:text-gray-300]="newUser().role !== r.value"
+                >
+                  {{ r.label }}
+                </button>
+              }
+            </div>
+          </div>
+          @if (newUser().role === 'CLIENT') {
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Numéro CNI</label>
+              <input
+                [ngModel]="newUser().cni"
+                (ngModelChange)="newUser.set({...newUser(), cni: $event})"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                placeholder="Ex: CM-2026-XX"
+              />
+            </div>
+          }
+          @if (newUser().role === 'GESTIONNAIRE') {
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Matricule</label>
+              <input
+                [ngModel]="newUser().matricule"
+                (ngModelChange)="newUser.set({...newUser(), matricule: $event})"
+                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                placeholder="Ex: GST-2024-XXX"
+              />
+            </div>
+          }
+        </div>
+
+        <div class="mt-6 flex justify-end gap-3">
+          <button (click)="closeCreateModal()" class="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
+            Annuler
+          </button>
+          <button
+            (click)="createUser()"
+            [disabled]="!newUser().fullName.trim() || !newUser().email.trim()"
+            class="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Créer l'utilisateur
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

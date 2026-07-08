@@ -4,10 +4,11 @@ export const USERS_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('../../shared/components/coming-soon/coming-soon').then((m) => m.ComingSoon),
-    data: {
-      title: 'Utilisateurs',
-      description: 'Création, validation, modification et suppression des comptes utilisateurs.',
-    },
+      import('./pages/user-list/user-list').then((m) => m.UserListComponent),
+  },
+  {
+    path: ':id',
+    loadComponent: () =>
+      import('./pages/user-detail/user-detail').then((m) => m.UserDetailComponent),
   },
 ];

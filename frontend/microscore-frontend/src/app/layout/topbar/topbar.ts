@@ -13,7 +13,7 @@ import { ThemeService } from '../../core/services/theme.service';
 export class Topbar {
   protected readonly theme = inject(ThemeService);
   protected readonly layout = inject(LayoutService);
-  private readonly auth = inject(AuthService);
+  protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   protected readonly profileOpen = signal(false);
@@ -30,6 +30,27 @@ export class Topbar {
   @HostListener('document:click')
   protected onDocumentClick(): void {
     this.profileOpen.set(false);
+  }
+
+  protected getInitials(): string {
+    const user = this.auth.currentUser();
+    if (!user) return '??';
+    return user.fullName
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }
+
+  protected getRoleLabel(): string {
+    const role = this.auth.currentUser()?.role;
+    switch (role) {
+      case 'ADMIN': return 'Administrateur';
+      case 'GESTIONNAIRE': return 'Gestionnaire';
+      case 'CLIENT': return 'Client';
+      default: return 'Utilisateur';
+    }
   }
 
   protected logout(): void {

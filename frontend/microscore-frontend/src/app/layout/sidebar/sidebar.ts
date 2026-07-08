@@ -1,6 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
+import { AuthService } from '../../core/services/auth.service';
 import { LayoutService } from '../../core/services/layout.service';
 
 interface NavItem {
@@ -21,9 +22,12 @@ interface NavGroup {
   templateUrl: './sidebar.html',
 })
 export class Sidebar {
+  protected readonly auth = inject(AuthService);
   protected readonly layout = inject(LayoutService);
 
-  protected readonly groups: NavGroup[] = [
+  protected readonly isAdmin = computed(() => this.auth.currentUser()?.role === 'ADMIN');
+
+  protected readonly groups = computed<NavGroup[]>(() => [
     {
       title: 'Menu',
       items: [
@@ -36,9 +40,13 @@ export class Sidebar {
     {
       title: 'Gestion',
       items: [
-        { label: 'Utilisateurs', route: '/users', icon: 'users' },
+        {
+          label: this.isAdmin() ? 'Utilisateurs' : 'Clients',
+          route: '/users',
+          icon: 'users',
+        },
         { label: 'Profil', route: '/profile', icon: 'user' },
       ],
     },
-  ];
+  ]);
 }
