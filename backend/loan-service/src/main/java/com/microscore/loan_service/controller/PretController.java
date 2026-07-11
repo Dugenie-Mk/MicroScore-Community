@@ -23,7 +23,6 @@ public class PretController {
     @PostMapping("/enregistrer-score")
     public ResponseEntity<PretResponse> enregistrerScore(
             @Valid @RequestBody EnregistrerScoreRequest request) {
-
         PretResponse response = pretService.enregistrerScore(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -38,24 +37,15 @@ public class PretController {
         return ResponseEntity.ok(pretService.getPretsByClientId(idClient));
     }
 
-    /**
-     * Liste les prêts par statut, utile pour un dashboard gestionnaire
-     * (ex: GET /api/prets/statut/EN_ATTENTE pour voir les dossiers à traiter).
-     */
     @GetMapping("/statut/{statut}")
     public ResponseEntity<List<PretResponse>> getPretsByStatut(@PathVariable StatutPret statut) {
         return ResponseEntity.ok(pretService.getPretsByStatut(statut));
     }
 
-    /**
-     * Endpoint pour qu'un gestionnaire décide manuellement du statut final.
-     * PATCH /api/prets/{idPret}/decision
-     */
     @PatchMapping("/{idPret}/decision")
     public ResponseEntity<PretResponse> deciderStatut(
             @PathVariable Long idPret,
             @Valid @RequestBody DeciderStatutRequest request) {
-
         return ResponseEntity.ok(pretService.deciderStatut(idPret, request));
     }
 }

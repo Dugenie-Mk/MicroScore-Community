@@ -83,8 +83,8 @@ public class ScoringServiceImpl implements ScoringService {
 
         Score scoreSauvegarde = scoreRepository.save(score);
 
-        // Appel best-effort à loan-service : un échec ne doit pas annuler le score déjà calculé
-        notifierLoanService(scoreSauvegarde);
+        // Appel best-effort à loan-service avec le score + montant + durée
+        notifierLoanService(scoreSauvegarde, request);
 
         return scoreMapper.toResponse(scoreSauvegarde);
     }
@@ -107,12 +107,14 @@ public class ScoringServiceImpl implements ScoringService {
 
 
     // ===================== NOTIFICATION VERS LOAN-SERVICE =====================
-    private void notifierLoanService(Score score) {
+    private void notifierLoanService(Score score, DemandeScoringRequest request) {
         try {
             EnregistrerScoreClientRequest requeteLoanService = EnregistrerScoreClientRequest.builder()
                     .idPret(score.getPretId())
                     .idClient(score.getClientId())
                     .scoreTotal(score.getScoreTotal())
+                    .montant(request.getMontant())
+                    .dureeRemboursementMois(request.getDureeRemboursementMois())
                     .build();
 
             loanServiceClient.enregistrerScore(requeteLoanService);
@@ -126,7 +128,8 @@ public class ScoringServiceImpl implements ScoringService {
 
 
     // ===================== BLOC 1 : PROFIL SOCIODÉMOGRAPHIQUE (20%) =====================
-    private double calculerBlocProfilSociodemographique(DemandeScoringRequest req, Map<String, Double> poids) {
+    private double calculerBlocProfilSociodemographique(DemandeScoringRequest req,
+                                                        Map<String, Double> poids) {
         double total = 0.0;
 
         double poidsAge = getPoids(poids, AGE);
@@ -161,7 +164,8 @@ public class ScoringServiceImpl implements ScoringService {
         }
 
         double poidsPersonnes = getPoids(poids, PERSONNES_A_CHARGE);
-        int nbPersonnes = req.getNombrePersonnesACharge() == null ? 0 : req.getNombrePersonnesACharge();
+        int nbPersonnes = req.getNombrePersonnesACharge() == null
+                ? 0 : req.getNombrePersonnesACharge();
         if (nbPersonnes <= 2) {
             total += poidsPersonnes;
         } else if (nbPersonnes <= 4) {
@@ -175,12 +179,14 @@ public class ScoringServiceImpl implements ScoringService {
 
 
     // ===================== BLOC 2 : CAPACITÉ DE REMBOURSEMENT (35%) =====================
-    private double calculerBlocCapaciteRemboursement(DemandeScoringRequest req, Map<String, Double> poids) {
+    private double calculerBlocCapaciteRemboursement(DemandeScoringRequest req,
+                                                     Map<String, Double> poids) {
         double total = 0.0;
 
         double revenu = req.getRevenuMensuelNet();
         double chargesFixes = req.getChargesFixes() == null ? 0.0 : req.getChargesFixes();
-        double fluxTresorerie = req.getFluxTresorerieActivite() == null ? 0.0 : req.getFluxTresorerieActivite();
+        double fluxTresorerie = req.getFluxTresorerieActivite() == null
+                ? 0.0 : req.getFluxTresorerieActivite();
         double mensualitePret = req.getMontant() / req.getDureeRemboursementMois();
 
         double poidsRevenu = getPoids(poids, REVENUS_MENSUELS);
@@ -227,7 +233,8 @@ public class ScoringServiceImpl implements ScoringService {
 
 
     // ===================== BLOC 3 : MONTANT ET DURÉE DU PRÊT (15% + 15%) =====================
-    private double calculerBlocMontantDuree(DemandeScoringRequest req, Map<String, Double> poids) {
+    private double calculerBlocMontantDuree(DemandeScoringRequest req,
+                                            Map<String, Double> poids) {
         double total = 0.0;
 
         double revenu = req.getRevenuMensuelNet();
@@ -253,11 +260,13 @@ public class ScoringServiceImpl implements ScoringService {
 
 
     // ===================== BLOC 4 : HISTORIQUE DE CRÉDIT (15%) =====================
-    private double calculerBlocHistoriqueCredit(DemandeScoringRequest req, Map<String, Double> poids) {
+    private double calculerBlocHistoriqueCredit(DemandeScoringRequest req,
+                                                Map<String, Double> poids) {
         double total = 0.0;
 
         double poidsComportement = getPoids(poids, COMPORTEMENT_PRETS);
-        int retards = req.getNombreRetardsAnterieurs() == null ? 0 : req.getNombreRetardsAnterieurs();
+        int retards = req.getNombreRetardsAnterieurs() == null
+                ? 0 : req.getNombreRetardsAnterieurs();
         if (retards == 0) {
             total += poidsComportement;
         } else if (retards <= 2) {
@@ -267,7 +276,8 @@ public class ScoringServiceImpl implements ScoringService {
         }
 
         double poidsPretsEnCours = getPoids(poids, PRETS_EN_COURS);
-        int pretsEnCours = req.getNombrePretsEnCours() == null ? 0 : req.getNombrePretsEnCours();
+        int pretsEnCours = req.getNombrePretsEnCours() == null
+                ? 0 : req.getNombrePretsEnCours();
         if (pretsEnCours == 0) {
             total += poidsPretsEnCours;
         } else if (pretsEnCours == 1) {
@@ -277,7 +287,8 @@ public class ScoringServiceImpl implements ScoringService {
         }
 
         double poidsAncienneteClient = getPoids(poids, ANCIENNETE_CLIENT);
-        int ancienneteClient = req.getAncienneteClientMois() == null ? 0 : req.getAncienneteClientMois();
+        int ancienneteClient = req.getAncienneteClientMois() == null
+                ? 0 : req.getAncienneteClientMois();
         if (ancienneteClient >= 36) {
             total += poidsAncienneteClient;
         } else if (ancienneteClient >= 12) {
@@ -291,7 +302,8 @@ public class ScoringServiceImpl implements ScoringService {
 
 
     // ===================== BLOC 5 : ACTIVITÉ ÉCONOMIQUE / BUSINESS (15%) =====================
-    private double calculerBlocActiviteEconomique(DemandeScoringRequest req, Map<String, Double> poids) {
+    private double calculerBlocActiviteEconomique(DemandeScoringRequest req,
+                                                  Map<String, Double> poids) {
         double total = 0.0;
 
         double poidsType = getPoids(poids, TYPE_ACTIVITE);
@@ -317,7 +329,8 @@ public class ScoringServiceImpl implements ScoringService {
         }
 
         double poidsAncienneteEntreprise = getPoids(poids, ANCIENNETE_ENTREPRISE);
-        int ancienneteEntreprise = req.getAncienneteEntrepriseMois() == null ? 0 : req.getAncienneteEntrepriseMois();
+        int ancienneteEntreprise = req.getAncienneteEntrepriseMois() == null
+                ? 0 : req.getAncienneteEntrepriseMois();
         if (ancienneteEntreprise >= 36) {
             total += poidsAncienneteEntreprise;
         } else if (ancienneteEntreprise >= 12) {
@@ -327,7 +340,8 @@ public class ScoringServiceImpl implements ScoringService {
         }
 
         double poidsCA = getPoids(poids, CHIFFRE_AFFAIRES);
-        double ca = req.getChiffreAffairesMensuel() == null ? 0.0 : req.getChiffreAffairesMensuel();
+        double ca = req.getChiffreAffairesMensuel() == null
+                ? 0.0 : req.getChiffreAffairesMensuel();
         double mensualitePret = req.getMontant() / req.getDureeRemboursementMois();
         if (ca > 0) {
             if (ca >= mensualitePret * 3) {
@@ -359,15 +373,18 @@ public class ScoringServiceImpl implements ScoringService {
 
 
     // ===================== BLOC 6 : GARANTIES ET COLLATÉRAUX (10%) =====================
-    private double calculerBlocGaranties(DemandeScoringRequest req, Map<String, Double> poids) {
+    private double calculerBlocGaranties(DemandeScoringRequest req,
+                                         Map<String, Double> poids) {
         double total = 0.0;
 
         double poidsGarantiePerso = getPoids(poids, GARANTIE_PERSONNELLE);
-        boolean garantiePersonnelle = req.getGarantiePersonnelle() != null && req.getGarantiePersonnelle();
+        boolean garantiePersonnelle = req.getGarantiePersonnelle() != null
+                && req.getGarantiePersonnelle();
         total += garantiePersonnelle ? poidsGarantiePerso : poidsGarantiePerso * 0.2;
 
         double poidsGarantieMaterielle = getPoids(poids, GARANTIE_MATERIELLE);
-        boolean garantieMaterielle = req.getGarantieMaterielle() != null && req.getGarantieMaterielle();
+        boolean garantieMaterielle = req.getGarantieMaterielle() != null
+                && req.getGarantieMaterielle();
         total += garantieMaterielle ? poidsGarantieMaterielle : poidsGarantieMaterielle * 0.2;
 
         double poidsEpargne = getPoids(poids, EPARGNE_CONSTITUEE);
@@ -386,11 +403,13 @@ public class ScoringServiceImpl implements ScoringService {
 
 
     // ===================== BLOC 7 : FACTEURS COMPORTEMENTAUX ET QUALITATIFS (5%) =====================
-    private double calculerBlocFacteursComportementaux(DemandeScoringRequest req, Map<String, Double> poids) {
+    private double calculerBlocFacteursComportementaux(DemandeScoringRequest req,
+                                                       Map<String, Double> poids) {
         double total = 0.0;
 
         double poidsMotivation = getPoids(poids, MOTIVATION);
-        int noteMotivationBrute = req.getNoteMotivationEntretien() == null ? 0 : req.getNoteMotivationEntretien();
+        int noteMotivationBrute = req.getNoteMotivationEntretien() == null
+                ? 0 : req.getNoteMotivationEntretien();
         total += poidsMotivation * (noteMotivationBrute / 10.0);
 
         double poidsReputation = getPoids(poids, REPUTATION);
@@ -404,7 +423,6 @@ public class ScoringServiceImpl implements ScoringService {
 
 
     // ===================== MÉTHODES UTILITAIRES =====================
-
     private double getPoids(Map<String, Double> poids, String nomCritere) {
         Double valeur = poids.get(nomCritere);
         if (valeur == null) {

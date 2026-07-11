@@ -12,6 +12,8 @@ public class PretMapper {
                 .idPret(pret.getIdPret())
                 .idClient(pret.getIdClient())
                 .scoreTotal(pret.getScoreTotal())
+                .montant(pret.getMontant())
+                .dureeRemboursementMois(pret.getDureeRemboursementMois())
                 .statut(pret.getStatut())
                 .dateEnregistrement(pret.getDateEnregistrement())
                 .dateDecision(pret.getDateDecision())

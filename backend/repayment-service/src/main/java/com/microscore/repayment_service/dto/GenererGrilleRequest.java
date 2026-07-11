@@ -1,6 +1,7 @@
-package com.microscore.loan_service.dto;
+package com.microscore.repayment_service.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,20 +11,19 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EnregistrerScoreRequest {
+public class GenererGrilleRequest {
 
     @NotNull(message = "L'identifiant du prêt est obligatoire")
     private Long idPret;
 
-    @NotNull(message = "L'identifiant du client est obligatoire")
-    private Long idClient;
-
-    @NotNull(message = "Le score total est obligatoire")
-    private Double scoreTotal;
-
     @NotNull(message = "Le montant est obligatoire")
+    @Positive(message = "Le montant doit être positif")
     private Double montant;
 
-    @NotNull(message = "La durée de remboursement est obligatoire")
+    @NotNull(message = "La durée est obligatoire")
+    @Positive(message = "La durée doit être positive")
     private Integer dureeRemboursementMois;
+
+    @NotNull(message = "La date de début est obligatoire")
+    private String dateDebut; // format ISO : "2026-07-01"
 }

@@ -14,4 +14,6 @@ public class EnregistrerScoreClientRequest {
     private Long idPret;
     private Long idClient;
     private Double scoreTotal;
+    private Double montant;
+    private Integer dureeRemboursementMois;
 }

@@ -25,6 +25,12 @@ public class Pret {
     @Column(name = "scoreTotal", nullable = false)
     private Double scoreTotal;
 
+    @Column(name = "montant", nullable = false)
+    private Double montant;
+
+    @Column(name = "dureeRemboursementMois", nullable = false)
+    private Integer dureeRemboursementMois;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "statut", nullable = false)
     @Builder.Default
