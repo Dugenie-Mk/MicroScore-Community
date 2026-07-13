@@ -1,0 +1,8 @@
+$kind: http-request
+name: Créer paramètre - Taux d'endettement
+url: http://localhost:8084/api/parametres-scoring
+method: POST
+body:
+  type: json
+  content: "{\"blocCritere\": \"CAPACITE_REMBOURSEMENT\", \"nomCritere\": \"Taux d'endettement\", \"poidsCritere\": 8.75, \"actif\": true, \"description\": \"Total mensualités / revenu\"}"
+order: 11000

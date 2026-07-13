@@ -1,0 +1,10 @@
+$kind: http-request
+name: Créer paramètre - typeActivite
+url: ""
+method: POST
+body:
+  type: json
+  content: "{\"blocCritere\": \"ACTIVITE_ECONOMIQUE\", \"nomCritere\": \"Type
+    d'activité\", \"poidsCritere\": 3.75, \"actif\": true, \"description\":
+    \"Commerce, artisanat, agriculture...\"}"
+order: 17000

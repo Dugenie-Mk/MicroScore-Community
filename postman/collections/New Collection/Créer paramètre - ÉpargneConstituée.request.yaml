@@ -1,0 +1,10 @@
+$kind: http-request
+name: Créer paramètre - ÉpargneConstituée
+url: http://localhost:8084/api/parametres-scoring
+method: POST
+body:
+  type: json
+  content: "{\"blocCritere\": \"GARANTIES\", \"nomCritere\": \"Épargne
+    constituée\", \"poidsCritere\": 3.34, \"actif\": true, \"description\":
+    \"Épargne auprès de l'institution\"}"
+order: 23000

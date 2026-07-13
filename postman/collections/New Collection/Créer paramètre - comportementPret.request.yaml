@@ -1,0 +1,10 @@
+$kind: http-request
+name: Créer paramètre - comportementPret
+url: ""
+method: POST
+body:
+  type: json
+  content: '{"blocCritere": "HISTORIQUE_CREDIT", "nomCritere": "Comportement sur
+    prêts précédents", "poidsCritere": 5.0, "actif": true, "description":
+    "Retards/défauts antérieurs"}'
+order: 9000

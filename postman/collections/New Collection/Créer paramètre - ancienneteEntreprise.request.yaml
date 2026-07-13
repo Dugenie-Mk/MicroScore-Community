@@ -1,0 +1,10 @@
+$kind: http-request
+name: Créer paramètre - ancienneteEntreprise
+url: ""
+method: POST
+body:
+  type: json
+  content: "{\"blocCritere\": \"ACTIVITE_ECONOMIQUE\", \"nomCritere\":
+    \"Ancienneté de l'entreprise\", \"poidsCritere\": 3.75, \"actif\": true,
+    \"description\": \"Durée d'existence de l'activité\"}"
+order: 20000

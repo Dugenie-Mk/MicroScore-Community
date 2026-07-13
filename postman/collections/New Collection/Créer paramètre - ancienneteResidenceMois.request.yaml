@@ -1,0 +1,8 @@
+$kind: http-request
+name: Créer paramètre - ancienneteResidenceMois
+url: http://localhost:8084/api/parametres-scoring
+method: POST
+body:
+  type: json
+  content: '{"blocCritere": "PROFIL_SOCIODEMOGRAPHIQUE", "nomCritere": "Stabilité résidentielle", "poidsCritere": 4.0, "actif": true, "description": "Ancienneté dans la zone géographique"}'
+order: 6000

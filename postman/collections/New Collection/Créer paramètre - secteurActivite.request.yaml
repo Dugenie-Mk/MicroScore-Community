@@ -1,0 +1,10 @@
+$kind: http-request
+name: Créer paramètre - secteurActivite
+url: ""
+method: POST
+body:
+  type: json
+  content: "{\"blocCritere\": \"ACTIVITE_ECONOMIQUE\", \"nomCritere\": \"Secteur
+    d'activité\", \"poidsCritere\": 3.75, \"actif\": true, \"description\":
+    \"Niveau de risque du secteur\"}"
+order: 25000

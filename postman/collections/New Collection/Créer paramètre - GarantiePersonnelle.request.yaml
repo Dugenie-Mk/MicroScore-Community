@@ -1,0 +1,8 @@
+$kind: http-request
+name: Créer paramètre - GarantiePersonnelle
+url: http://localhost:8084/api/parametres-scoring
+method: POST
+body:
+  type: json
+  content: '{"blocCritere": "GARANTIES", "nomCritere": "Garantie personnelle", "poidsCritere": 3.33, "actif": true, "description": "Caution solidaire ou groupe"}'
+order: 26000

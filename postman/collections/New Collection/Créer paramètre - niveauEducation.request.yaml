@@ -1,0 +1,10 @@
+$kind: http-request
+name: Créer paramètre - niveauEducation
+url: http://localhost:8084/api/parametres-scoring
+method: POST
+body:
+  type: json
+  content: "{\"blocCritere\": \"PROFIL_SOCIODEMOGRAPHIQUE\", \"nomCritere\":
+    \"Niveau d'éducation\", \"poidsCritere\": 4.0, \"actif\": true,
+    \"description\": \"Niveau scolaire atteint\"}"
+order: 4000
