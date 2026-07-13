@@ -18,6 +18,16 @@ export const CLIENT_ROUTES: Routes = [
           import('./pages/client-loans/client-loans').then((m) => m.ClientLoans),
       },
       {
+        path: 'repayments',
+        loadComponent: () =>
+          import('./pages/client-repayments/client-repayments').then((m) => m.ClientRepayments),
+      },
+      {
+        path: 'repayment-request',
+        loadComponent: () =>
+          import('./pages/client-repayment-form/client-repayment-form').then((m) => m.ClientRepaymentForm),
+      },
+      {
         path: 'loan-request',
         loadComponent: () =>
           import('./pages/client-loan-form/client-loan-form').then((m) => m.ClientLoanForm),

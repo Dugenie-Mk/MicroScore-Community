@@ -50,6 +50,7 @@ export class ClientLayout {
   protected readonly tabs = [
     { label: 'Accueil', route: '/client/dashboard', icon: 'home' },
     { label: 'Prêts', route: '/client/loans', icon: 'document' },
+    { label: 'Remboursements', route: '/client/repayments', icon: 'repayment' },
     { label: 'Profil', route: '/client/profile', icon: 'user' },
   ] as const;
 }

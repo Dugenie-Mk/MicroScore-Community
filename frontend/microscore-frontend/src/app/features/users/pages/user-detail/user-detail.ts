@@ -196,6 +196,16 @@ export class UserDetailComponent implements OnInit {
       if (found.role === 'CLIENT') {
         this.loadClientMockData();
       }
+    } else {
+      this.user.set({
+        id,
+        fullName: `Utilisateur #${id}`,
+        email: 'inconnu@microscore.cm',
+        telephone: '-',
+        role: 'CLIENT',
+        statut: 'ACTIF',
+        infos: {},
+      });
     }
     this.loading.set(false);
   }

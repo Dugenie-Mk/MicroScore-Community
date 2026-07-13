@@ -12,4 +12,22 @@
       <router-outlet />
     </main>
   </div>
+
+  <!-- Toast notifications -->
+  <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm">
+    @for (msg of toast.messages(); track msg.id) {
+      <div role="alert"
+        class="flex items-start gap-3 rounded-2xl px-5 py-3.5 text-sm font-medium shadow-lg ring-1 ring-inset backdrop-blur-sm transition-all duration-300 animate-slide-up"
+        [class.bg-emerald-50.text-emerald-800.ring-emerald-200]="msg.type === 'success'"
+        [class.bg-blue-50.text-blue-800.ring-blue-200]="msg.type === 'info'"
+        [class.bg-amber-50.text-amber-800.ring-amber-200]="msg.type === 'warning'"
+        [class.bg-red-50.text-red-800.ring-red-200]="msg.type === 'error'"
+      >
+        <span class="flex-1">{{ msg.message }}</span>
+        <button (click)="toast.remove(msg.id)" class="shrink-0 rounded-lg p-0.5 opacity-60 transition-opacity hover:opacity-100">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    }
+  </div>
 </div>
