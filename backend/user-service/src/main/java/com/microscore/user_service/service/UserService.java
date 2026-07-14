@@ -8,6 +8,8 @@ import com.microscore.user_service.exception.UserNotFoundException;
 import com.microscore.user_service.mapper.UserMapper;
 import com.microscore.user_service.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,12 +21,14 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
     public UserDTO createUser(UserCreateDTO dto) {
         if (userRepository.existsByEmail(dto.getEmail())) {
-            throw new EmailAlreadyExistsException("Un compte existe déjà avec cet email : " + dto.getEmail());
+        throw new EmailAlreadyExistsException("Un compte existe déjà avec cet email : " + dto.getEmail());
         }
         User user = userMapper.toEntity(dto);
+        user.setMotDePasse(passwordEncoder.encode(dto.getMotDePasse()));
         User savedUser = userRepository.save(user);
         return userMapper.toDTO(savedUser);
     }
