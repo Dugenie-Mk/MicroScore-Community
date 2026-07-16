@@ -2,6 +2,7 @@ package com.microscore.loan_service.service;
 
 import com.microscore.loan_service.client.RepaymentServiceClient;
 import com.microscore.loan_service.client.ScoringClient;
+import com.microscore.loan_service.dto.CreerPretRequest;
 import com.microscore.loan_service.dto.DeciderStatutRequest;
 import com.microscore.loan_service.dto.EnregistrerScoreRequest;
 import com.microscore.loan_service.dto.GenererGrilleClientRequest;
@@ -33,6 +34,22 @@ public class PretServiceImpl implements PretService {
     private final PretRepository pretRepository;
     private final PretMapper pretMapper;
     private final RepaymentServiceClient repaymentServiceClient;
+
+
+    // ===================== CRÉER UN PRÊT =====================
+    @Override
+    @Transactional
+    public PretResponse creerPret(CreerPretRequest request) {
+        Pret pret = Pret.builder()
+                .idClient(request.getIdClient())
+                .motif(request.getMotif())
+                .montant(request.getMontant())
+                .dureeRemboursementMois(request.getDureeRemboursementMois())
+                .statut(StatutPret.EN_ATTENTE)
+                .build();
+        Pret pretSauvegarde = pretRepository.save(pret);
+        return pretMapper.toResponse(pretSauvegarde);
+    }
 
 
     // ===================== ENREGISTRER SCORE + CRÉER LE PRÊT =====================
@@ -94,6 +111,15 @@ public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
 }
 
 
+    // ===================== RÉCUPÉRER TOUS LES PRÊTS =====================
+    @Override
+    public List<PretResponse> getAllPrets() {
+        return pretRepository.findAll().stream()
+                .map(pretMapper::toResponse)
+                .toList();
+    }
+
+
     // ===================== RÉCUPÉRER UN PRÊT PAR SON ID =====================
     @Override
     public PretResponse getPretById(Long idPret) {
@@ -141,8 +167,8 @@ public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
 
         Pret pretMisAJour = pretRepository.save(pret);
 
-        // Si le prêt est ACCEPTE, générer automatiquement la grille d'amortissement
-        if (request.getStatut() == StatutPret.ACCEPTE) {
+        // Si le prêt est APPROUVE, générer automatiquement la grille d'amortissement
+        if (request.getStatut() == StatutPret.APPROUVE) {
             notifierRepaymentService(pretMisAJour);
         }
 
