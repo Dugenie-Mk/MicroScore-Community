@@ -15,6 +15,8 @@ public class UserMapper {
                 (user.getNom() != null ? user.getNom() : "");
         return UserDTO.builder()
                 .id(user.getId())
+                .nom(user.getNom())
+                .prenom(user.getPrenom())
                 .fullName(fullName.trim())
                 .email(user.getEmail())
                 .telephone(user.getTelephone())

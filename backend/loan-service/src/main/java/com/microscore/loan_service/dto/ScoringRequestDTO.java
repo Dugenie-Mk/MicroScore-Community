@@ -1,25 +1,14 @@
 package com.microscore.loan_service.dto;
 
-import jakarta.validation.constraints.*;
 import lombok.*;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EnregistrerScoreRequest {
+public class ScoringRequestDTO {
 
-    @NotNull(message = "L'identifiant du prêt est obligatoire")
-    private Long idPret;
-
-    @NotNull(message = "L'identifiant du client est obligatoire")
-    private Long idClient;
-
-    @NotNull(message = "Le montant est obligatoire")
-    private Double montant;
-
-    @NotNull(message = "La durée de remboursement est obligatoire")
-    private Integer dureeRemboursementMois;
+    private Long clientId;
 
     // Profil sociodémographique
     private Integer age;
@@ -32,6 +21,10 @@ public class EnregistrerScoreRequest {
     private Double revenuMensuelNet;
     private Double chargesFixes;
     private Double fluxTresorerieActivite;
+
+    // Montant et durée
+    private Double montant;
+    private Integer dureeRemboursementMois;
 
     // Historique de crédit
     private Integer nombreRetardsAnterieurs;
