@@ -1,10 +1,7 @@
 package com.microscore.loan_service.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -13,12 +10,9 @@ import lombok.Setter;
 @Builder
 public class ScoreResponseDTO {
 
+    private Long scoreId;
+    private Long pretId;
     private Long clientId;
-    private Double profilSociodemographiqueScore;
-    private Double capaciteRemboursementScore;
-    private Double historiqueCreditScore;
-    private Double activitesEconomiquesScore;
-    private Double garantiesCollaterauxScore;
-    private Double facteursComportementauxScore;
-    private Double scoreFinal;
+    private Double scoreTotal;
+    private LocalDateTime dateCalcul;
 }

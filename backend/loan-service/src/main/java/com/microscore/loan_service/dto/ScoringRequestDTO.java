@@ -1,31 +1,49 @@
 package com.microscore.loan_service.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class ScoringRequestDTO {
 
     private Long clientId;
+
+    // Profil sociodémographique
     private Integer age;
     private String situationMatrimoniale;
     private String niveauEducation;
-    private Integer personnesACharge;
-    private Double revenusMensuels;
+    private Integer ancienneteResidenceMois;
+    private Integer nombrePersonnesACharge;
+
+    // Capacité de remboursement
+    private Double revenuMensuelNet;
     private Double chargesFixes;
-    private Double tauxEndettement;
+    private Double fluxTresorerieActivite;
+
+    // Montant et durée
+    private Double montant;
+    private Integer dureeRemboursementMois;
+
+    // Historique de crédit
+    private Integer nombreRetardsAnterieurs;
+    private Integer nombrePretsEnCours;
+    private Integer ancienneteClientMois;
+
+    // Activité économique
     private String typeActivite;
-    private Integer ancienneteEntreprise;
+    private Integer ancienneteEntrepriseMois;
+    private Double chiffreAffairesMensuel;
+    private String secteurActivite;
+
+    // Garanties
+    private Boolean garantiePersonnelle;
     private Boolean garantieMaterielle;
-    private Boolean cautionSolidaire;
     private Double epargneConstituee;
+
+    // Facteurs comportementaux
+    private Integer noteMotivationEntretien;
     private String reputationCommunaute;
-    private Boolean epargneReguliere;
+    private String regulariteEpargne;
 }
