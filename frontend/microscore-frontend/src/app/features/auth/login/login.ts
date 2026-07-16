@@ -72,9 +72,12 @@ export class Login {
         const route = res.user.role === 'CLIENT' ? '/client/dashboard' : '/dashboard';
         this.router.navigate([route]);
       },
-      error: () => {
+      error: (err) => {
         this.loading.set(false);
-        this.error.set('Email ou mot de passe incorrect.');
+        const msg = err.status === 0
+          ? 'Impossible de contacter le serveur. Vérifiez que les services backend sont démarrés.'
+          : err.error?.message || 'Email ou mot de passe incorrect.';
+        this.error.set(msg);
       },
     });
   }
