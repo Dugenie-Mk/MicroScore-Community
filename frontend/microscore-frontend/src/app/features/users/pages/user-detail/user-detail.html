@@ -275,24 +275,16 @@
 
             @if (activeTab() === 'scoring') {
               <div>
-                <div class="mb-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-                  <div class="flex items-center gap-2">
-                    <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10">
-                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                      </svg>
-                    </span>
-                    <h3 class="text-base font-bold text-gray-900 dark:text-white">Paramètres de scoring</h3>
-                  </div>
-                  <button (click)="openModal('add')" class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-brand-700">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                <div class="mb-6 flex items-center gap-2">
+                  <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
                     </svg>
-                    Ajouter un critère
-                  </button>
+                  </span>
+                  <h3 class="text-base font-bold text-gray-900 dark:text-white">Paramètres de scoring</h3>
                 </div>
 
-                <!-- Score circulaire -->
+                <!-- Score client -->
                 <div class="mb-8 flex items-center justify-center gap-8 sm:gap-12">
                   <div class="relative flex h-32 w-32 items-center justify-center sm:h-36 sm:w-36">
                     <svg class="h-full w-full -rotate-90" viewBox="0 0 120 120">
@@ -310,27 +302,36 @@
                     </div>
                   </div>
                   <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                    <div><span class="text-gray-400">Pondération</span> <span class="ml-2 font-semibold text-gray-900 dark:text-white">100%</span></div>
-                    <div><span class="text-gray-400">Obtenu</span> <span class="ml-2 font-semibold text-brand-600">{{ clientScore() }}%</span></div>
-                    <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-green-400"></span> <span class="text-xs text-gray-400">Faible risque</span></div>
-                    <div class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-brand-400"></span> <span class="text-xs text-gray-400">Score cible : 70%</span></div>
+                    <div>
+                      <span class="text-gray-400">Score client</span>
+                      <span class="ml-2 font-semibold text-brand-600">{{ clientScore() }}/100</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-400">Prêts scorés</span>
+                      <span class="ml-2 font-semibold text-gray-900 dark:text-white">{{ loans().filter(l => l.score > 0).length }}</span>
+                    </div>
+                    @let risk = getRiskCategory(clientScore());
+                    <div class="col-span-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold {{ risk.style }}">
+                      <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                      Risque {{ risk.label }}
+                    </div>
+                    <div class="col-span-2 text-xs text-gray-400 dark:text-gray-500 pt-1">
+                      Score moyen calculé à partir des prêts scorés de ce client
+                    </div>
                   </div>
                 </div>
 
-                <!-- Grille des critères -->
+                <!-- Grille des critères depuis BD -->
                 <div class="space-y-3">
-                  @for (item of scoringParams(); track item.critere) {
+                  @for (item of scoringParamService.parametres(); track item.id) {
                     <div class="group rounded-xl border border-gray-100 bg-gray-50/50 p-4 transition-all hover:border-gray-200 hover:shadow-sm dark:border-gray-800 dark:bg-gray-800/20 dark:hover:border-gray-700">
                       <div class="flex items-start justify-between mb-3">
                         <div class="flex-1">
-                          <h4 class="text-sm font-bold text-gray-900 dark:text-white">{{ item.critere }}</h4>
+                          <h4 class="text-sm font-bold text-gray-900 dark:text-white">{{ item.nom }}</h4>
                           <div class="mt-1 flex flex-wrap gap-1">
-                            @for (det of item.details; track det.libelle) {
+                            @for (det of item.details; track det.id) {
                               <span class="inline-flex items-center rounded-md bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700">
-                                {{ det.libelle }}
-                                @if (det.note) {
-                                  <span class="ml-1 text-gray-400 italic">· {{ det.note }}</span>
-                                }
+                                {{ det.nom }}
                               </span>
                             }
                           </div>
@@ -340,31 +341,16 @@
                             <p class="text-[10px] text-gray-400 dark:text-gray-500">Poids</p>
                             <p class="text-sm font-bold text-gray-900 dark:text-white">{{ item.poids }}%</p>
                           </div>
-                          <div class="text-right">
-                            <p class="text-[10px] text-gray-400 dark:text-gray-500">Obtenu</p>
-                            <p class="text-sm font-bold text-brand-600">{{ item.pourcentageObtenu }}%</p>
-                          </div>
-                          <div class="flex gap-1 opacity-0 transition-all group-hover:opacity-100">
-                            <button (click)="openModal('edit', item)" class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-amber-600 dark:hover:bg-gray-700">
-                              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                              </svg>
-                            </button>
-                            <button (click)="deleteCritere(item)" class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-red-600 dark:hover:bg-gray-700">
-                              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                              </svg>
-                            </button>
-                          </div>
                         </div>
                       </div>
-                      <!-- Barre de progression -->
                       <div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                         <div class="h-full rounded-full bg-brand-500 transition-all duration-500"
-                          [style.width.%]="(item.pourcentageObtenu / item.poids) * 100"
+                          [style.width.%]="item.poids"
                         ></div>
                       </div>
                     </div>
+                  } @empty {
+                    <p class="text-sm text-gray-400 text-center py-6">Aucun paramètre de scoring défini. Configurez-les dans l'onglet Scoring.</p>
                   }
                 </div>
               </div>
@@ -387,31 +373,29 @@
                         <th class="px-4 py-3">Date</th>
                         <th class="px-4 py-3">Motif</th>
                         <th class="px-4 py-3 text-right">Montant</th>
-                        <th class="px-4 py-3 text-center">Taux</th>
-                        <th class="px-4 py-3 text-right">Total</th>
+                        <th class="px-4 py-3 text-right">Score</th>
+                        <th class="px-4 py-3 text-right">Durée</th>
                         <th class="px-4 py-3 text-center">Statut</th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                      @for (loan of loans(); track loan.date) {
+                      @for (loan of loans(); track loan.idPret) {
                         <tr class="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                          <td class="px-4 py-3.5 text-gray-700 dark:text-gray-300">{{ loan.date | date:'dd/MM/yyyy' }}</td>
+                          <td class="px-4 py-3.5 text-gray-700 dark:text-gray-300">{{ loan.date }}</td>
                           <td class="px-4 py-3.5 font-medium text-gray-900 dark:text-white">{{ loan.motif }}</td>
                           <td class="px-4 py-3.5 text-right font-medium text-gray-900 dark:text-white">{{ loan.montant | number:'1.0-0' }} FCFA</td>
-                          <td class="px-4 py-3.5 text-center text-gray-700 dark:text-gray-300">{{ loan.taux }}%</td>
-                          <td class="px-4 py-3.5 text-right font-medium text-gray-900 dark:text-white">{{ loan.total | number:'1.0-0' }} FCFA</td>
+                          <td class="px-4 py-3.5 text-right font-medium">
+                            @if (loan.score > 0) {
+                              <span class="{{ getScoreColor(loan.score) }}">{{ loan.score }}</span>
+                            } @else {
+                              <span class="text-gray-400">—</span>
+                            }
+                          </td>
+                          <td class="px-4 py-3.5 text-right text-gray-700 dark:text-gray-300">{{ loan.duree }}</td>
                           <td class="px-4 py-3.5 text-center">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset"
-                              [class.bg-green-50]="loan.statut === 'ACCORDÉ'"
-                              [class.text-green-700]="loan.statut === 'ACCORDÉ'"
-                              [class.ring-green-600/20]="loan.statut === 'ACCORDÉ'"
-                              [class.bg-red-50]="loan.statut === 'REFUSÉ'"
-                              [class.text-red-700]="loan.statut === 'REFUSÉ'"
-                              [class.ring-red-600/20]="loan.statut === 'REFUSÉ'"
-                              [class.bg-amber-50]="loan.statut === 'EN_ATTENTE'"
-                              [class.text-amber-700]="loan.statut === 'EN_ATTENTE'"
-                              [class.ring-amber-600/20]="loan.statut === 'EN_ATTENTE'"
-                            >{{ loan.statut }}</span>
+                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset {{ getStatutClass(loan.statut) }}">
+                              {{ loan.statutLabel }}
+                            </span>
                           </td>
                         </tr>
                       } @empty {
@@ -433,55 +417,51 @@
                   </span>
                   <h3 class="text-base font-bold text-gray-900 dark:text-white">Historique des remboursements</h3>
                 </div>
-                <div class="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800">
-                  <table class="w-full text-sm">
-                    <thead>
-                      <tr class="border-b border-gray-100 bg-gray-50/50 text-left text-[11px] font-semibold uppercase text-gray-500 dark:border-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
-                        <th class="px-3 py-3">Date emprunt</th>
-                        <th class="px-3 py-3 text-right">Montant</th>
-                        <th class="px-3 py-3 text-center">Taux</th>
-                        <th class="px-3 py-3 text-right">Total</th>
-                        <th class="px-3 py-3 text-right">Payé</th>
-                        <th class="px-3 py-3 text-right">Reste</th>
-                        <th class="px-3 py-3">Mode</th>
-                        <th class="px-3 py-3 text-center">Statut</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                      @for (rep of repayments(); track rep.id) {
-                        <tr class="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-                          <td class="px-3 py-3.5 text-gray-700 dark:text-gray-300">{{ rep.dateEmprunt }}</td>
-                          <td class="px-3 py-3.5 text-right font-medium text-gray-900 dark:text-white">{{ rep.montantEmprunte | number:'1.0-0' }}</td>
-                          <td class="px-3 py-3.5 text-center text-gray-700 dark:text-gray-300">{{ rep.tauxInteret }}%</td>
-                          <td class="px-3 py-3.5 text-right font-medium text-gray-900 dark:text-white">{{ rep.totalARembourser | number:'1.0-0' }}</td>
-                          <td class="px-3 py-3.5 text-right font-medium text-green-700 dark:text-green-400">{{ rep.montantRembourse | number:'1.0-0' }}</td>
-                          <td class="px-3 py-3.5 text-right font-medium"
-                            [class.text-red-700]="rep.resteARembourser > 0"
-                            [class.text-gray-900]="rep.resteARembourser === 0"
-                            [class.dark:text-red-400]="rep.resteARembourser > 0"
-                            [class.dark:text-white]="rep.resteARembourser === 0"
-                          >{{ rep.resteARembourser | number:'1.0-0' }}</td>
-                          <td class="px-3 py-3.5 text-gray-700 dark:text-gray-300">{{ rep.mode }}</td>
-                          <td class="px-3 py-3.5 text-center">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset"
-                              [class.bg-green-50]="rep.statut === 'À temps'"
-                              [class.text-green-700]="rep.statut === 'À temps'"
-                              [class.ring-green-600/20]="rep.statut === 'À temps'"
-                              [class.bg-blue-50]="rep.statut === 'En retard'"
-                              [class.text-blue-700]="rep.statut === 'En retard'"
-                              [class.ring-blue-600/20]="rep.statut === 'En retard'"
-                              [class.bg-red-50]="rep.statut === 'Non remboursé'"
-                              [class.text-red-700]="rep.statut === 'Non remboursé'"
-                              [class.ring-red-600/20]="rep.statut === 'Non remboursé'"
-                            >{{ rep.statut }}</span>
-                          </td>
+                @if (repayments().length > 0) {
+                  <div class="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800">
+                    <table class="w-full text-sm">
+                      <thead>
+                        <tr class="border-b border-gray-100 bg-gray-50/50 text-left text-[11px] font-semibold uppercase text-gray-500 dark:border-gray-800 dark:bg-gray-800/30 dark:text-gray-400">
+                          <th class="px-3 py-3">Motif</th>
+                          <th class="px-3 py-3 text-right">Montant</th>
+                          <th class="px-3 py-3 text-right">Payé</th>
+                          <th class="px-3 py-3 text-right">Reste</th>
+                          <th class="px-3 py-3 text-center">Statut</th>
+                          <th class="px-3 py-3 text-center">Échéances</th>
                         </tr>
-                      } @empty {
-                        <tr><td colspan="8" class="px-4 py-8 text-center text-sm text-gray-400">Aucun remboursement enregistré</td></tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                        @for (rep of repayments(); track rep.idPret) {
+                          <tr class="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
+                            <td class="px-3 py-3.5 font-medium text-gray-900 dark:text-white">{{ rep.motif }}</td>
+                            <td class="px-3 py-3.5 text-right font-medium text-gray-900 dark:text-white">{{ rep.montantEmprunte | number:'1.0-0' }}</td>
+                            <td class="px-3 py-3.5 text-right font-medium text-green-700 dark:text-green-400">{{ rep.montantRembourse | number:'1.0-0' }}</td>
+                            <td class="px-3 py-3.5 text-right font-medium"
+                              [class.text-red-700]="rep.resteARembourser > 0"
+                              [class.text-gray-900]="rep.resteARembourser === 0"
+                              [class.dark:text-red-400]="rep.resteARembourser > 0"
+                              [class.dark:text-white]="rep.resteARembourser === 0"
+                            >{{ rep.resteARembourser | number:'1.0-0' }}</td>
+                            <td class="px-3 py-3.5 text-center">
+                              <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset {{ getRembStatusClass(rep.statut) }}">
+                                @switch (rep.statut) {
+                                  @case ('SOLDÉ') { Soldé }
+                                  @case ('EN_COURS') { En cours }
+                                  @case ('EN_RETARD') { En retard }
+                                }
+                              </span>
+                            </td>
+                            <td class="px-3 py-3.5 text-center text-gray-500 text-xs">
+                              {{ rep.echeances.filter(e => e.statut === 'PAYE').length }}/{{ rep.echeances.length }}
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                } @else {
+                  <p class="text-sm text-gray-400 text-center py-8">Aucun remboursement pour ce client.</p>
+                }
               </div>
             }
           </div>
@@ -539,68 +519,6 @@
       </div>
     </div>
 
-    <!-- Scoring Modal -->
-    @if (showModal()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-        <div class="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900">
-          <div class="mb-6 flex items-center justify-between">
-            <h2 class="text-lg font-bold text-gray-900 dark:text-white">
-              {{ modalMode() === 'add' ? 'Ajouter' : 'Modifier' }} un critère
-            </h2>
-            <button (click)="closeModal()" class="rounded-xl p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
-              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom du critère</label>
-              <input [(ngModel)]="currentCritere().critere" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Poids (%)</label>
-                <input [(ngModel)]="currentCritere().poids" type="number" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Score obtenu (%)</label>
-                <input [(ngModel)]="currentCritere().pourcentageObtenu" type="number" class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
-              </div>
-            </div>
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Détails</label>
-                <button (click)="addDetail()" class="text-xs font-semibold text-brand-600 hover:text-brand-700">+ Ajouter un détail</button>
-              </div>
-              <div class="space-y-2 max-h-48 overflow-y-auto">
-                @for (det of currentCritere().details; track $index) {
-                  <div class="flex items-start gap-2">
-                    <input [(ngModel)]="det.libelle" placeholder="Libellé" class="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
-                    <input [(ngModel)]="det.note" placeholder="Note" class="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
-                    <button (click)="removeDetail($index)" class="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-800">
-                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                }
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6 flex justify-end gap-3">
-            <button (click)="closeModal()" class="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
-              Annuler
-            </button>
-            <button (click)="saveCritere()" class="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-brand-700">
-              Enregistrer
-            </button>
-          </div>
-        </div>
-      </div>
-    }
   </div>
 } @else {
   <div class="flex min-h-[70vh] items-center justify-center">

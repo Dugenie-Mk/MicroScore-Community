@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 
 import { DashboardService } from '../../core/services/dashboard.service';
 import { LoanStatus } from '../../core/models/dashboard.model';
@@ -12,16 +12,7 @@ import { RadialGauge } from '../../shared/components/charts/radial-gauge';
   templateUrl: './dashboard.html',
 })
 export class Dashboard {
-  private readonly dashboardService = inject(DashboardService);
-
-  protected readonly kpis = signal(this.dashboardService.getKpis());
-  protected readonly loanRequests = signal(this.dashboardService.getLoanRequests());
-  protected readonly activity = signal(this.dashboardService.getRecentActivity());
-  protected readonly notifications = signal(this.dashboardService.getNotifications());
-  protected readonly disbursements = signal(this.dashboardService.getMonthlyDisbursements());
-  protected readonly repaymentTrend = signal(this.dashboardService.getRepaymentTrend());
-  protected readonly monthlyTarget = signal(this.dashboardService.getMonthlyTarget());
-  protected readonly riskBands = signal(this.dashboardService.getRiskDistribution());
+  protected readonly dashboardService = inject(DashboardService);
 
   protected formatAmount(value: number): string {
     return new Intl.NumberFormat('fr-FR').format(value) + ' FCFA';

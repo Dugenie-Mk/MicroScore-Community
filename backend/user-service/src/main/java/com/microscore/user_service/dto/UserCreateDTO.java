@@ -18,11 +18,8 @@ import java.time.LocalDate;
 @Builder
 public class UserCreateDTO {
 
-    @NotBlank(message = "Le nom est obligatoire")
-    private String nom;
-
-    @NotBlank(message = "Le prénom est obligatoire")
-    private String prenom;
+    @NotBlank(message = "Le nom complet est obligatoire")
+    private String fullName;
 
     @NotBlank(message = "L'email est obligatoire")
     @Email(message = "Format d'email invalide")
@@ -31,7 +28,6 @@ public class UserCreateDTO {
     @NotBlank(message = "Le mot de passe est obligatoire")
     private String motDePasse;
 
-    @NotBlank(message = "Le téléphone est obligatoire")
     private String telephone;
 
     private User.Role role;
@@ -40,4 +36,6 @@ public class UserCreateDTO {
     private String situationMatrimoniale;
     private String niveauEducation;
     private Integer personnesACharge;
+    private String profession;
+    private String secteurActivite;
 }

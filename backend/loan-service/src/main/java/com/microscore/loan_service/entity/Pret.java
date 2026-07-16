@@ -22,6 +22,9 @@ public class Pret {
     @Column(name = "idClient", nullable = false)
     private Long idClient;
 
+    @Column(name = "motif")
+    private String motif;
+
     @Column(name = "scoreTotal", nullable = false)
     private Double scoreTotal;
 

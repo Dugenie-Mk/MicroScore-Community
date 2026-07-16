@@ -9,11 +9,35 @@
     </a>
     <div>
       <p class="text-xs font-medium uppercase tracking-widest text-gray-500 dark:text-gray-400">Détails client</p>
-      <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ client()?.fullName }}</h1>
+      @if (client(); as c) {
+        <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ c.fullName }}</h1>
+      } @else {
+        <h1 class="text-xl font-bold text-gray-900 dark:text-white">Chargement...</h1>
+      }
     </div>
   </div>
 
-  @if (client(); as c) {
+  @if (loading()) {
+    <div class="flex items-center justify-center py-20">
+      <svg class="h-8 w-8 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+      </svg>
+    </div>
+  } @else if (error(); as err) {
+    <div class="flex flex-col items-center justify-center py-20">
+      <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+        <svg class="h-7 w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+        </svg>
+      </div>
+      <p class="mt-4 text-sm font-medium text-gray-900 dark:text-white">Client introuvable</p>
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ err }}</p>
+      <a [routerLink]="['/loans']" class="mt-4 rounded-lg bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 dark:bg-brand-950/20 dark:text-brand-400 dark:hover:bg-brand-950/30">
+        Retour aux prêts
+      </a>
+    </div>
+  } @else if (client(); as c) {
     <!-- Infos personnelles -->
     <div class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <div class="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
@@ -25,63 +49,46 @@
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white truncate">{{ c.fullName }}</h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">{{ c.email }} · {{ c.telephone }}</p>
           </div>
-          <div class="flex items-center gap-2.5">
-            <div class="flex flex-col items-end">
-              <span class="text-xs text-gray-400 dark:text-gray-500">Score</span>
-              <span class="text-lg font-bold tabular-nums {{ getScoreColor(c.score) }}">{{ c.score }}</span>
-            </div>
-            <div class="h-10 w-10 rounded-xl bg-gray-100 p-2 dark:bg-gray-800">
-              <div class="h-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                <div class="h-full rounded-full {{ getScoreBarColor(c.score) }}" [style.height.%]="c.score"></div>
+          @if (score() > 0) {
+            <div class="flex items-center gap-2.5">
+              <div class="flex flex-col items-end">
+                <span class="text-xs text-gray-400 dark:text-gray-500">Score</span>
+                <span class="text-lg font-bold tabular-nums {{ getScoreColor(score()) }}">{{ score() }}</span>
+              </div>
+              <div class="h-10 w-10 rounded-xl bg-gray-100 p-2 dark:bg-gray-800">
+                <div class="h-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                  <div class="h-full rounded-full {{ getScoreBarColor(score()) }}" [style.height.%]="score()"></div>
+                </div>
               </div>
             </div>
-          </div>
+          }
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-6 px-6 py-4 sm:grid-cols-3 lg:grid-cols-4">
-        <div>
-          <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">CNI</p>
-          <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.cni }}</p>
-        </div>
-        <div>
-          <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Date naissance</p>
-          <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.dateNaissance }}</p>
-        </div>
-        <div>
-          <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Sexe</p>
-          <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.sexe }}</p>
-        </div>
-        <div>
-          <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Situation</p>
-          <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.situationMatrimoniale }}</p>
-        </div>
-        <div>
-          <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Profession</p>
-          <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.profession }}</p>
-        </div>
-        <div>
-          <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Secteur</p>
-          <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.secteurActivite }}</p>
-        </div>
-        <div class="col-span-2">
-          <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Documents</p>
-          <div class="mt-0.5 flex flex-wrap gap-2">
-            @for (d of c.documents; track d.type) {
-              <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                [class.bg-green-50.text-green-700]="d.statut === 'AJOUTE'"
-                [class.bg-red-50.text-red-700]="d.statut === 'MANQUANT'"
-                [class.dark:bg-green-950/20.dark:text-green-400]="d.statut === 'AJOUTE'"
-                [class.dark:bg-red-950/20.dark:text-red-400]="d.statut === 'MANQUANT'"
-              >
-                <span class="h-1.5 w-1.5 rounded-full"
-                  [class.bg-green-500]="d.statut === 'AJOUTE'"
-                  [class.bg-red-500]="d.statut === 'MANQUANT'"
-                ></span>
-                {{ d.type }}
-              </span>
-            }
+      <div class="grid grid-cols-2 gap-6 px-6 py-4 sm:grid-cols-3 lg:grid-cols-3">
+        @if (c.dateNaissance) {
+          <div>
+            <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Date naissance</p>
+            <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.dateNaissance }}</p>
           </div>
-        </div>
+        }
+        @if (c.situationMatrimoniale) {
+          <div>
+            <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Situation</p>
+            <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.situationMatrimoniale }}</p>
+          </div>
+        }
+        @if (c.profession) {
+          <div>
+            <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Profession</p>
+            <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.profession }}</p>
+          </div>
+        }
+        @if (c.secteurActivite) {
+          <div>
+            <p class="text-[11px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Secteur</p>
+            <p class="mt-0.5 text-sm font-medium text-gray-900 dark:text-white">{{ c.secteurActivite }}</p>
+          </div>
+        }
       </div>
     </div>
 
@@ -90,72 +97,43 @@
       <div class="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Scoring crédit</h3>
-          @let risk = riskCategory();
-          <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-            [class.bg-green-50.text-green-700]="risk.label === 'Faible'"
-            [class.bg-amber-50.text-amber-700]="risk.label === 'Modéré'"
-            [class.bg-red-50.text-red-700]="risk.label === 'Élevé'"
-            [class.dark:bg-green-950/20.dark:text-green-400]="risk.label === 'Faible'"
-            [class.dark:bg-amber-950/20.dark:text-amber-400]="risk.label === 'Modéré'"
-            [class.dark:bg-red-950/20.dark:text-red-400]="risk.label === 'Élevé'">
-            <span class="h-1.5 w-1.5 rounded-full"
-              [class.bg-green-500]="risk.label === 'Faible'"
-              [class.bg-amber-500]="risk.label === 'Modéré'"
-              [class.bg-red-500]="risk.label === 'Élevé'"></span>
-            Risque {{ risk.label }}
-          </span>
+          @if (score() > 0) {
+            @let risk = riskCategory();
+            <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+              [class.bg-green-50.text-green-700]="risk.label === 'Faible'"
+              [class.bg-amber-50.text-amber-700]="risk.label === 'Modéré'"
+              [class.bg-red-50.text-red-700]="risk.label === 'Élevé'"
+              [class.dark:bg-green-950/20.dark:text-green-400]="risk.label === 'Faible'"
+              [class.dark:bg-amber-950/20.dark:text-amber-400]="risk.label === 'Modéré'"
+              [class.dark:bg-red-950/20.dark:text-red-400]="risk.label === 'Élevé'">
+              <span class="h-1.5 w-1.5 rounded-full"
+                [class.bg-green-500]="risk.label === 'Faible'"
+                [class.bg-amber-500]="risk.label === 'Modéré'"
+                [class.bg-red-500]="risk.label === 'Élevé'"></span>
+              Risque {{ risk.label }}
+            </span>
+          }
         </div>
       </div>
       <div class="px-6 py-4">
-        @if (c.criteres && c.criteres.length > 0) {
-          <table class="w-full text-left text-sm">
-            <thead>
-              <tr class="border-b border-gray-100 dark:border-gray-800">
-                <th class="pb-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Critère</th>
-                <th class="pb-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">Poids</th>
-                <th class="pb-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">Obtenu</th>
-                <th class="pb-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Progression</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-              @for (cr of c.criteres; track cr.critere) {
-                @let ratio = cr.pourcentageObtenu / cr.poids;
-                <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-                  <td class="py-3 pr-4 text-sm text-gray-900 dark:text-white">{{ cr.critere }}</td>
-                  <td class="py-3 text-right whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{{ cr.poids }}</td>
-                  <td class="py-3 text-right whitespace-nowrap text-sm font-semibold"
-                    [class.text-green-600.dark:text-green-400]="ratio >= 0.8"
-                    [class.text-amber-600.dark:text-amber-400]="ratio >= 0.5 && ratio < 0.8"
-                    [class.text-red-600.dark:text-red-400]="ratio < 0.5">
-                    {{ cr.pourcentageObtenu }}/{{ cr.poids }}
-                  </td>
-                  <td class="py-3 pl-4">
-                    <div class="flex items-center gap-2.5">
-                      <div class="flex-1 h-2 rounded-full bg-gray-100 dark:bg-gray-800">
-                        <div class="h-full rounded-full transition-all duration-700 {{ getCritereBarColor(cr.pourcentageObtenu, cr.poids) }}"
-                          [style.width.%]="(cr.pourcentageObtenu / cr.poids) * 100"></div>
-                      </div>
-                      <span class="text-[11px] font-semibold tabular-nums w-8 text-right"
-                        [class.text-green-600]="ratio >= 0.8"
-                        [class.text-amber-600]="ratio >= 0.5 && ratio < 0.8"
-                        [class.text-red-600]="ratio < 0.5"
-                        [class.dark:text-green-400]="ratio >= 0.8"
-                        [class.dark:text-amber-400]="ratio >= 0.5 && ratio < 0.8"
-                        [class.dark:text-red-400]="ratio < 0.5">
-                        {{ ratio * 100 | number:'1.0-0' }}%
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-          <div class="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 dark:border-gray-800">
-            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Score total</span>
-            <span class="text-lg font-bold {{ getScoreColor(c.score) }}">{{ c.score }}/100</span>
+        @if (score() > 0) {
+          <div class="flex items-center gap-4">
+            <div class="flex flex-col items-center">
+              <span class="text-3xl font-bold {{ getScoreColor(score()) }}">{{ score() }}/100</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400 mt-1">Score moyen</span>
+            </div>
+            <div class="flex-1 h-3 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-700 {{ getScoreBarColor(score()) }}"
+                [style.width.%]="score()"></div>
+            </div>
           </div>
+          <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+            Score calculé sur {{ loans().filter(l => l.scoreTotal > 0).length }} prêt(s).
+          </p>
         } @else {
-          <div class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">Aucune donnée de scoring pour ce client.</div>
+          <p class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+            Aucun score calculé pour ce client. Utilisez le bouton "Calculer le score" sur un prêt en attente.
+          </p>
         }
       </div>
     </div>
@@ -174,6 +152,7 @@
                 <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">Montant</th>
                 <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Durée</th>
                 <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Date</th>
+                <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Score</th>
                 <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Statut</th>
                 @if (!isAdmin()) {
                   <th class="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">Action</th>
@@ -181,12 +160,19 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-              @for (l of clientLoans(); track l.id) {
+              @for (l of clientLoans(); track l.idPret) {
                 <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                   <td class="px-6 py-3.5 font-medium text-gray-900 dark:text-white">{{ l.motif }}</td>
                   <td class="px-6 py-3.5 text-right text-gray-900 dark:text-white">{{ l.montant | number:'1.0-0' }}</td>
                   <td class="px-6 py-3.5 text-gray-700 dark:text-gray-300">{{ l.duree }}</td>
                   <td class="px-6 py-3.5 text-gray-700 dark:text-gray-300">{{ l.date }}</td>
+                  <td class="px-6 py-3.5">
+                    @if (l.scoreTotal > 0) {
+                      <span class="font-semibold tabular-nums {{ getScoreColor(l.scoreTotal) }}">{{ Math.round(l.scoreTotal) }}</span>
+                    } @else {
+                      <span class="text-gray-400 dark:text-gray-500">—</span>
+                    }
+                  </td>
                   <td class="px-6 py-3.5">
                     <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold {{ getStatutClass(l.statut) }}">
                       <span class="h-1.5 w-1.5 rounded-full"
@@ -205,16 +191,23 @@
                     <td class="px-6 py-3.5 text-right">
                       @if (l.statut === 'EN_ATTENTE') {
                         <div class="flex items-center justify-end gap-1.5">
-                          <button (click)="updateStatus(l.id, 'APPROUVE')"
-                            class="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:hover:bg-emerald-950/40">
-                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            Approuver
+                          <button (click)="openScoreModal(l)"
+                            class="inline-flex items-center gap-1 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-semibold text-violet-700 transition-colors hover:bg-violet-100 dark:bg-violet-950/20 dark:text-violet-400 dark:hover:bg-violet-950/40">
+                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                            Score
                           </button>
-                          <button (click)="updateStatus(l.id, 'REJETE')"
-                            class="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/40">
-                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            Rejeter
-                          </button>
+                          @if (l.scoreTotal > 0) {
+                            <button (click)="updateStatus(l.idPret, 'APPROUVE')"
+                              class="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:hover:bg-emerald-950/40">
+                              <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                              Approuver
+                            </button>
+                            <button (click)="updateStatus(l.idPret, 'REJETE')"
+                              class="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 dark:hover:bg-red-950/40">
+                              <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                              Rejeter
+                            </button>
+                          }
                         </div>
                       } @else {
                         <span class="text-xs text-gray-400 dark:text-gray-500">—</span>
@@ -249,7 +242,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-              @for (r of clientRepayments(); track r.id) {
+              @for (r of clientRepayments(); track r.idPret) {
                 <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
                   <td class="px-6 py-3.5 font-medium text-gray-900 dark:text-white">{{ r.motif }}</td>
                   <td class="px-6 py-3.5 text-right text-gray-900 dark:text-white">{{ r.montantEmprunte | number:'1.0-0' }}</td>
@@ -372,7 +365,8 @@
                   <div class="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm transition-transform duration-300 hover:scale-110"
                     [class.bg-green-500]="ec.dot.includes('green')"
                     [class.bg-amber-500]="ec.dot.includes('amber')"
-                    [class.bg-red-500]="ec.dot.includes('red')">
+                    [class.bg-red-500]="ec.dot.includes('red')"
+                    [class.bg-gray-400]="ec.dot.includes('gray')">
                     @if (ec.dot.includes('green')) {
                       <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
@@ -381,9 +375,13 @@
                       <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
                       </svg>
-                    } @else {
+                    } @else if (ec.dot.includes('red')) {
                       <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                      </svg>
+                    } @else {
+                      <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
                       </svg>
                     }
                   </div>
@@ -391,21 +389,23 @@
                     <div class="flex items-center justify-between gap-2">
                       <div>
                         <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ e.motif }}</p>
-                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ e.dateEcheance }} · {{ e.montant | number:'1.0-0' }} FCFA</p>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400">{{ e.dateEcheancePrevue.substring(0, 10) }} · {{ e.mensualite | number:'1.0-0' }} FCFA</p>
                       </div>
                       <span class="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
                         [class.bg-green-50.text-green-700]="ec.dot.includes('green')"
                         [class.bg-amber-50.text-amber-700]="ec.dot.includes('amber')"
                         [class.bg-red-50.text-red-700]="ec.dot.includes('red')"
+                        [class.bg-gray-50.text-gray-600]="ec.dot.includes('gray')"
                         [class.dark:bg-green-950/20.dark:text-green-400]="ec.dot.includes('green')"
                         [class.dark:bg-amber-950/20.dark:text-amber-400]="ec.dot.includes('amber')"
-                        [class.dark:bg-red-950/20.dark:text-red-400]="ec.dot.includes('red')">
+                        [class.dark:bg-red-950/20.dark:text-red-400]="ec.dot.includes('red')"
+                        [class.dark:bg-gray-800.dark:text-gray-400]="ec.dot.includes('gray')">
                         {{ ec.label }}
                       </span>
                     </div>
                     @if (e.datePaiement) {
                       <p class="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
-                        Paiement reçu le {{ e.datePaiement }}
+                        Paiement reçu le {{ e.datePaiement.substring(0, 10) }}
                       </p>
                     }
                   </div>
@@ -419,18 +419,92 @@
         <div class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">Aucune échéance pour ce client.</div>
       }
     </div>
-  } @else {
-    <div class="flex flex-col items-center justify-center py-20">
-      <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
-        <svg class="h-7 w-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-        </svg>
+  }
+
+  <!-- Modal de scoring -->
+  @if (showScoreModal()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+      <div class="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+        <div class="mb-5 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Calcul du score</h3>
+          <button (click)="closeScoreModal()" class="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Revenu mensuel net (FCFA)</label>
+            <input type="number" [(ngModel)]="scoreForm.revenuMensuelNet" min="0"
+              class="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-3.5 py-2.5 text-sm text-gray-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-200/60 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Charges fixes mensuelles (FCFA)</label>
+            <input type="number" [(ngModel)]="scoreForm.chargesFixes" min="0"
+              class="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-3.5 py-2.5 text-sm text-gray-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-200/60 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Niveau d'éducation</label>
+            <select [(ngModel)]="scoreForm.niveauEducation"
+              class="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-3.5 py-2.5 text-sm text-gray-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-200/60 dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+              <option value="AUCUN">Aucun</option>
+              <option value="PRIMAIRE">Primaire</option>
+              <option value="SECONDAIRE">Secondaire</option>
+              <option value="BAC">Baccalauréat</option>
+              <option value="BTS">BTS / DUT</option>
+              <option value="LICENCE">Licence</option>
+              <option value="MASTER">Master</option>
+              <option value="DOCTORAT">Doctorat</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Retards antérieurs</label>
+              <input type="number" [(ngModel)]="scoreForm.nombreRetardsAnterieurs" min="0"
+                class="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-3.5 py-2.5 text-sm text-gray-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-200/60 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prêts en cours</label>
+              <input type="number" [(ngModel)]="scoreForm.nombrePretsEnCours" min="0"
+                class="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-3.5 py-2.5 text-sm text-gray-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-200/60 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ancienneté client (mois)</label>
+              <input type="number" [(ngModel)]="scoreForm.ancienneteClientMois" min="0"
+                class="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-3.5 py-2.5 text-sm text-gray-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-200/60 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note entretien (/10)</label>
+              <input type="number" [(ngModel)]="scoreForm.noteMotivationEntretien" min="0" max="10"
+                class="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-3.5 py-2.5 text-sm text-gray-900 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-200/60 dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button (click)="closeScoreModal()"
+            class="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
+            Annuler
+          </button>
+          <button (click)="submitScore()" [disabled]="scoringLoading()"
+            class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95">
+            @if (scoringLoading()) {
+              <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+              </svg>
+              Calcul...
+            } @else {
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+              Calculer le score
+            }
+          </button>
+        </div>
       </div>
-      <p class="mt-4 text-sm font-medium text-gray-900 dark:text-white">Client introuvable</p>
-      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Aucun client ne correspond à cet identifiant.</p>
-      <a [routerLink]="['/loans']" class="mt-4 rounded-lg bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 dark:bg-brand-950/20 dark:text-brand-400 dark:hover:bg-brand-950/30">
-        Retour aux prêts
-      </a>
     </div>
   }
 </div>

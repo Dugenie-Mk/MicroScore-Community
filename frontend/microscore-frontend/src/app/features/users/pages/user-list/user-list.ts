@@ -4,16 +4,13 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
 import { AuthService } from '../../../../core/services/auth.service';
+import { UserService } from '../../../../core/services/user.service';
+import { ToastService } from '../../../../core/services/toast.service';
+import { User } from '../../../../core/models/user.model';
 
 type RoleFilter = 'TOUS' | 'CLIENT' | 'GESTIONNAIRE' | 'ADMIN';
 
-interface UserData {
-  id: number;
-  fullName: string;
-  email: string;
-  telephone: string;
-  role: 'CLIENT' | 'GESTIONNAIRE' | 'ADMIN';
-  statut: 'ACTIF' | 'BLOQUE' | 'EN_ATTENTE';
+interface UserData extends User {
   cni?: string;
   matricule?: string;
   derniereConnexion?: string;
@@ -34,9 +31,6 @@ export class UserListComponent {
   activeFilter = signal<RoleFilter>('TOUS');
   menuOpenId = signal<number | null>(null);
   showCreateModal = signal(false);
-  currentPage = signal(1);
-  pageSize = 6;
-
   readonly allFilters: { label: string; value: RoleFilter }[] = [
     { label: 'Tous', value: 'TOUS' },
     { label: 'Clients', value: 'CLIENT' },
@@ -63,26 +57,11 @@ export class UserListComponent {
         !search ||
         u.fullName.toLowerCase().includes(search) ||
         u.email.toLowerCase().includes(search) ||
-        u.telephone.includes(search);
+        (u.telephone?.includes(search) ?? false);
       const matchesRole = role === 'TOUS' || u.role === role;
       return matchesSearch && matchesRole;
     });
   });
-
-  // ---- Pagination ----
-  totalPages = computed(() => Math.max(1, Math.ceil(this.filteredUsers().length / this.pageSize)));
-
-  paginatedUsers = computed(() => {
-    const start = (this.currentPage() - 1) * this.pageSize;
-    return this.filteredUsers().slice(start, start + this.pageSize);
-  });
-
-  goToPage(page: number) {
-    if (page >= 1 && page <= this.totalPages()) {
-      this.currentPage.set(page);
-      this.menuOpenId.set(null);
-    }
-  }
 
   // ---- Stats cards ----
   stats = computed(() => {
@@ -99,6 +78,9 @@ export class UserListComponent {
   });
 
   // ---- Create user form ----
+  private readonly userService = inject(UserService);
+  private readonly toast = inject(ToastService);
+
   newUser = signal({
     fullName: '',
     email: '',
@@ -107,8 +89,6 @@ export class UserListComponent {
     cni: '',
     matricule: '',
   });
-
-  private nextId = 12;
 
   setRole(role: string) {
     this.newUser.set({ ...this.newUser(), role: role as 'CLIENT' | 'GESTIONNAIRE' | 'ADMIN' });
@@ -128,74 +108,33 @@ export class UserListComponent {
     const form = this.newUser();
     if (!form.fullName.trim() || !form.email.trim()) return;
 
-    const user: UserData = {
-      id: this.nextId++,
+    this.userService.create({
       fullName: form.fullName.trim(),
       email: form.email.trim(),
-      telephone: form.telephone.trim() || '+237 XXX XXX XXX',
+      motDePasse: 'default123',
+      telephone: form.telephone.trim() || undefined,
       role: form.role,
-      statut: 'ACTIF',
-    };
-
-    if (form.role === 'CLIENT') user.cni = form.cni.trim() || `CM-${this.nextId}`;
-    if (form.role === 'GESTIONNAIRE') user.matricule = form.matricule.trim() || `GST-${this.nextId}`;
-
-    this.allUsers.update(list => [user, ...list]);
-    this.currentPage.set(1);
-    this.closeCreateModal();
+    }).subscribe({
+      next: () => {
+        this.toast.show('Utilisateur créé avec succès.', 'success');
+        this.loadUsers();
+        this.closeCreateModal();
+      },
+      error: (err) => {
+        const msg = err.error?.message || err.message || 'Erreur lors de la création. Vérifiez que le backend est en cours d\'exécution.';
+        this.toast.show(msg, 'error');
+      },
+    });
   }
 
   constructor() {
-    this.loadMockData();
+    this.loadUsers();
   }
 
-  private loadMockData() {
-    this.allUsers.set([
-      {
-        id: 1, fullName: 'Kambou Prunelle', email: 'prunelle@gmail.com',
-        telephone: '+237 600 000 001', role: 'CLIENT', statut: 'ACTIF', cni: 'CM-2026-KP',
-      },
-      {
-        id: 2, fullName: 'Anafack Jules', email: 'jules@gmail.com',
-        telephone: '+237 699 999 999', role: 'CLIENT', statut: 'ACTIF', cni: 'CM-2026-AJ',
-      },
-      {
-        id: 3, fullName: 'Kuaté Édouard', email: 'edouard@gmail.com',
-        telephone: '+237 677 777 777', role: 'CLIENT', statut: 'BLOQUE', cni: 'CM-2026-KE',
-      },
-      {
-        id: 4, fullName: 'Mbiada Carine', email: 'carine.m@email.com',
-        telephone: '+237 655 444 333', role: 'CLIENT', statut: 'EN_ATTENTE', cni: 'CM-2026-MC',
-      },
-      {
-        id: 5, fullName: 'Tchinda Paul', email: 'paul.t@email.com',
-        telephone: '+237 622 111 222', role: 'CLIENT', statut: 'ACTIF', cni: 'CM-2026-TP',
-      },
-      {
-        id: 6, fullName: 'Nana Djibril', email: 'nana.d@microscore.cm',
-        telephone: '+237 688 999 000', role: 'GESTIONNAIRE', statut: 'ACTIF', matricule: 'GST-2024-001',
-      },
-      {
-        id: 7, fullName: 'Eyanga Rachel', email: 'rachel.e@microscore.cm',
-        telephone: '+237 677 888 999', role: 'GESTIONNAIRE', statut: 'ACTIF', matricule: 'GST-2024-002',
-      },
-      {
-        id: 8, fullName: 'Fotso Rodrigue', email: 'rodrigue.f@microscore.cm',
-        telephone: '+237 699 777 888', role: 'GESTIONNAIRE', statut: 'BLOQUE', matricule: 'GST-2023-015',
-      },
-      {
-        id: 9, fullName: 'Simo Benoît', email: 'simo.b@microscore.cm',
-        telephone: '+237 655 666 777', role: 'ADMIN', statut: 'ACTIF', derniereConnexion: '08/07/2026 à 09:45',
-      },
-      {
-        id: 10, fullName: 'Djoko Arielle', email: 'arielle.d@microscore.cm',
-        telephone: '+237 622 333 444', role: 'ADMIN', statut: 'ACTIF', derniereConnexion: '07/07/2026 à 14:30',
-      },
-      {
-        id: 11, fullName: 'Belinga Cyrille', email: 'cyrille.b@microscore.cm',
-        telephone: '+237 688 555 666', role: 'ADMIN', statut: 'BLOQUE', derniereConnexion: '01/06/2026 à 11:00',
-      },
-    ]);
+  private loadUsers() {
+    this.userService.getAll().subscribe({
+      next: (data) => this.allUsers.set(data),
+    });
   }
 
   getInitials(name: string): string {
@@ -209,7 +148,6 @@ export class UserListComponent {
 
   setFilter(filter: RoleFilter) {
     this.activeFilter.set(filter);
-    this.currentPage.set(1);
     this.menuOpenId.set(null);
   }
 
@@ -218,18 +156,13 @@ export class UserListComponent {
   }
 
   toggleStatus(user: UserData) {
-    this.allUsers.update((users) =>
-      users.map((u) => {
-        if (u.id === user.id) {
-          return {
-            ...u,
-            statut: u.statut === 'ACTIF' ? 'BLOQUE' : 'ACTIF' as 'ACTIF' | 'BLOQUE',
-          };
-        }
-        return u;
-      })
-    );
-    this.menuOpenId.set(null);
+    const newStatus = user.statut === 'ACTIF' ? 'BLOQUE' : 'ACTIF';
+    this.userService.updateUserStatus(user.id, newStatus).subscribe({
+      next: () => {
+        this.loadUsers();
+        this.menuOpenId.set(null);
+      },
+    });
   }
 
   getRoleBadgeClass(role: string): string {

@@ -1,34 +1,25 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
-import { LoanRequestService } from '../../../../core/services/loan-request.service';
+import { LoanRequestService, PretApiResponse } from '../../../../core/services/loan-request.service';
+import { RepaymentService, GrilleAmortissementResponse } from '../../../../core/services/repayment.service';
 
-interface ClientLoanDisplay {
-  id: number;
-  adminLoanId: number;
+interface LoanItem {
+  idPret: number;
   motif: string;
   montant: number;
-  date: string;
   duree: string;
-  taux: number;
+  date: string;
+  statut: string;
+  statutLabel: string;
+  score: number;
   total: number;
   rembourse: number;
   reste: number;
   statutRemb: string;
 }
-
-const ALL_LOANS: ClientLoanDisplay[] = [
-  { id: 1, adminLoanId: 2, motif: 'Achat Matériel', montant: 500000, date: '10/01/2026', duree: '6 mois', taux: 5, total: 525000, rembourse: 525000, reste: 0, statutRemb: 'Soldé' },
-  { id: 2, adminLoanId: 5, motif: 'Frais Scolaires', montant: 300000, date: '15/02/2026', duree: '3 mois', taux: 5, total: 315000, rembourse: 100000, reste: 215000, statutRemb: 'En cours' },
-  { id: 3, adminLoanId: 1, motif: 'Commerce', montant: 350000, date: '20/05/2026', duree: '4 mois', taux: 5, total: 367500, rembourse: 0, reste: 367500, statutRemb: 'En cours' },
-  { id: 4, adminLoanId: 4, motif: 'Équipement Agricole', montant: 450000, date: '25/03/2026', duree: '5 mois', taux: 5, total: 472500, rembourse: 250000, reste: 222500, statutRemb: 'En cours' },
-  { id: 5, adminLoanId: 3, motif: 'Rénovation Habitat', montant: 200000, date: '05/04/2026', duree: '3 mois', taux: 7, total: 210000, rembourse: 50000, reste: 160000, statutRemb: 'En retard' },
-  { id: 6, adminLoanId: 7, motif: 'Véhicule', montant: 800000, date: '12/03/2026', duree: '12 mois', taux: 7, total: 840000, rembourse: 0, reste: 840000, statutRemb: '-' },
-  { id: 7, adminLoanId: 6, motif: 'Santé', montant: 150000, date: '01/06/2026', duree: '2 mois', taux: 5, total: 157500, rembourse: 0, reste: 157500, statutRemb: 'En cours' },
-  { id: 8, adminLoanId: 8, motif: 'Formation', montant: 100000, date: '20/06/2026', duree: '2 mois', taux: 5, total: 105000, rembourse: 0, reste: 105000, statutRemb: 'En cours' },
-];
 
 const LABEL_MAP: Record<string, string> = {
   APPROUVE: 'ACCORDÉ',
@@ -45,27 +36,82 @@ const LABEL_MAP: Record<string, string> = {
 export class ClientLoans {
   private readonly auth = inject(AuthService);
   private readonly loanService = inject(LoanRequestService);
+  private readonly repaymentService = inject(RepaymentService);
 
-  protected readonly loans = computed(() => {
+  protected readonly loans = signal<LoanItem[]>([]);
+  protected readonly loading = signal(true);
+
+  constructor() {
+    this.loadLoans();
+  }
+
+  private loadLoans(): void {
     const userId = this.auth.currentUser()?.id;
-    if (!userId) return [];
-    const clientLoanIds = this.getAdminLoanIds(userId);
-    return ALL_LOANS
-      .filter((l) => clientLoanIds.includes(l.adminLoanId))
-      .map((l) => {
-        const shared = this.loanService.loanRequests().find((s) => s.id === l.adminLoanId);
-        const rawStatut = shared?.statut ?? 'EN_ATTENTE';
-        return { ...l, statut: LABEL_MAP[rawStatut] ?? 'EN_ATTENTE' };
-      });
-  });
+    if (!userId) {
+      this.loading.set(false);
+      return;
+    }
 
-  private getAdminLoanIds(clientId: number): number[] {
-    const map: Record<number, number[]> = {
-      1: [1, 4],
-      2: [2, 5],
-      5: [3, 7],
-    };
-    return map[clientId] ?? [];
+    this.loanService.getByClientId(userId).subscribe({
+      next: (prets) => {
+        const items: LoanItem[] = prets.map((p) => ({
+          idPret: p.idPret,
+          motif: p.motif || '',
+          montant: p.montant,
+          duree: p.dureeRemboursementMois + ' mois',
+          date: p.dateEnregistrement ? p.dateEnregistrement.substring(0, 10) : '',
+          statut: p.statut,
+          statutLabel: LABEL_MAP[p.statut] ?? 'EN_ATTENTE',
+          score: p.scoreTotal,
+          total: 0,
+          rembourse: 0,
+          reste: 0,
+          statutRemb: '-',
+        }));
+
+        this.loans.set(items);
+        this.loading.set(false);
+
+        for (const pret of prets) {
+          if (pret.statut === 'APPROUVE') {
+            this.loadAmortissement(pret.idPret);
+          }
+        }
+      },
+      error: () => {
+        this.loading.set(false);
+      },
+    });
+  }
+
+  private loadAmortissement(idPret: number): void {
+    this.repaymentService.getAmortissementByPret(idPret).subscribe({
+      next: (grille) => {
+        this.loans.update((items) =>
+          items.map((item) => {
+            if (item.idPret !== idPret) return item;
+            const payees = grille.echeances.filter((e) => e.statut === 'PAYE');
+            const totalRembourse = payees.reduce((s, e) => s + e.mensualite, 0);
+            return {
+              ...item,
+              total: grille.coutTotalCredit,
+              rembourse: totalRembourse,
+              reste: grille.coutTotalCredit - totalRembourse,
+              statutRemb: this.getRembStatus(grille),
+            };
+          })
+        );
+      },
+      error: () => {},
+    });
+  }
+
+  private getRembStatus(grille: GrilleAmortissementResponse): string {
+    const allPayees = grille.echeances.every((e) => e.statut === 'PAYE');
+    if (allPayees) return 'Soldé';
+    const enRetard = grille.echeances.some((e) => e.statut === 'EN_RETARD');
+    if (enRetard) return 'En retard';
+    return 'En cours';
   }
 
   protected getStatusClass(statut: string): string {

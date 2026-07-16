@@ -82,6 +82,17 @@ public class GlobalExceptionHandler {
                 .build();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(erreur);
     }
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex) {
+        ErrorResponse erreur = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .statut(HttpStatus.NOT_FOUND.value())
+                .erreur("Ressource non trouvée")
+                .message(ex.getMessage())
+                .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(erreur);
+    }
+
     @ExceptionHandler(LoanServiceUnavailableException.class)
     public ResponseEntity<ErrorResponse> handleLoanServiceUnavailable(LoanServiceUnavailableException ex) {
         ErrorResponse erreur = ErrorResponse.builder()

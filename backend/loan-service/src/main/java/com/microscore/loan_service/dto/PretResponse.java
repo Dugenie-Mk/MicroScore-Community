@@ -16,6 +16,7 @@ public class PretResponse {
 
     private Long idPret;
     private Long idClient;
+    private String motif;
     private Double scoreTotal;
     private Double montant;
     private Integer dureeRemboursementMois;

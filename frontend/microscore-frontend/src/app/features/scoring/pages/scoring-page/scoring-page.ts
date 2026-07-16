@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ScoringParamService, Parametre, Detail } from '../../../../core/services/scoring-param.service';
@@ -17,26 +17,51 @@ export class ScoringPage {
 
   protected editingParam: Parametre | null = null;
   protected editingDetail: { paramId: number; detail: Detail } | null = null;
+  protected editingPoids: number | null = null;
+  protected editingPoidsVal = 0;
   protected showAddParam = false;
-  protected showAddDetailFor: number | null = null;
+  protected readonly showAddDetailFor = signal<number | null>(null);
+  protected tempDetails = signal<string[]>([]);
 
-  protected editParam(p: Parametre, field: 'nom' | 'poids', value: string | number): void {
-    this.editingParam = { ...p, [field]: value };
+  protected openAddParamForm(): void {
+    this.tempDetails.set([]);
+    this.showAddParam = true;
+    setTimeout(() => {
+      const el = document.getElementById('addParamSection');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  }
+
+  protected readonly remainingWeight = computed(() => {
+    const used = this.service.parametres().reduce((s, p) => s + p.poids, 0);
+    return Math.max(0, 100 - used);
+  });
+
+  protected toggleAddDetail(paramId: number): void {
+    this.showAddDetailFor.update((v) => (v === paramId ? null : paramId));
   }
 
   protected startEditParam(p: Parametre): void {
-    this.editingParam = { ...p, details: [...p.details] };
+    const nouveauNom = prompt('Modifier le nom du critère :', p.nom);
+    if (nouveauNom && nouveauNom.trim() && nouveauNom.trim() !== p.nom) {
+      this.service.saveParam({ ...p, nom: nouveauNom.trim(), details: [...p.details] });
+    }
   }
 
-  protected cancelEditParam(): void {
+  protected startPoidsEdit(p: Parametre): void {
+    this.editingPoids = p.id;
+    this.editingPoidsVal = p.poids;
     this.editingParam = null;
+    this.cancelEditDetail();
   }
 
-  protected saveParam(): void {
-    const p = this.editingParam;
-    if (!p || !p.nom.trim() || p.poids < 0) return;
-    this.service.saveParam(p);
-    this.editingParam = null;
+  protected cancelPoidsEdit(): void {
+    this.editingPoids = null;
+  }
+
+  protected savePoids(paramId: number): void {
+    this.service.savePoids(paramId, this.editingPoidsVal);
+    this.editingPoids = null;
   }
 
   protected deleteParam(id: number): void {
@@ -44,16 +69,38 @@ export class ScoringPage {
     this.service.deleteParam(id);
   }
 
-  protected addParamInline(nomInput: HTMLInputElement, poidsInput: HTMLInputElement): void {
+  protected addDetailTemp(input: HTMLInputElement): void {
+    const nom = input.value.trim();
+    if (!nom) return;
+    this.tempDetails.update((list) => [...list, nom]);
+    input.value = '';
+  }
+
+  protected removeDetailTemp(idx: number): void {
+    this.tempDetails.update((list) => list.filter((_, i) => i !== idx));
+  }
+
+  protected createParamWithDetails(nomInput: HTMLInputElement, poidsInput: HTMLInputElement, detailInput: HTMLInputElement): void {
     const nom = nomInput.value.trim();
-    const poids = +poidsInput.value;
-    if (!nom || poids < 0) return;
+    const poids = +poidsInput.value || this.remainingWeight();
+    if (!nom || poids <= 0 || poids > 100) return;
+    const pendingDetail = detailInput.value.trim();
+    const allDetails = pendingDetail ? [...this.tempDetails(), pendingDetail] : this.tempDetails();
     this.service.addParam(nom, poids);
+    const newParam = this.service.parametres().at(-1);
+    if (newParam) {
+      for (const d of allDetails) {
+        this.service.addDetail(newParam.id, d);
+      }
+    }
+    this.tempDetails.set([]);
     this.showAddParam = false;
   }
 
   protected startEditDetail(paramId: number, detail: Detail): void {
     this.editingDetail = { paramId, detail: { ...detail } };
+    this.editingParam = null;
+    this.cancelPoidsEdit();
   }
 
   protected cancelEditDetail(): void {
@@ -71,11 +118,12 @@ export class ScoringPage {
     this.service.deleteDetail(paramId, detailId);
   }
 
-  protected addDetail(paramId: number): void {
-    const nom = prompt('Nom du détail :');
-    if (!nom?.trim()) return;
-    this.service.addDetail(paramId, nom.trim());
-    this.showAddDetailFor = null;
+  protected addDetail(paramId: number, input: HTMLInputElement): void {
+    const nom = input.value.trim();
+    if (!nom) return;
+    this.service.addDetail(paramId, nom);
+    input.value = '';
+    this.showAddDetailFor.set(null);
   }
 
   protected totalPoids = computed(() =>
@@ -83,12 +131,12 @@ export class ScoringPage {
   );
 
   protected readonly palette = [
-    { from: 'from-violet-500', to: 'to-purple-500', bg: 'bg-violet-500', light: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-700 dark:text-violet-300' },
-    { from: 'from-emerald-500', to: 'to-teal-500', bg: 'bg-emerald-500', light: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300' },
-    { from: 'from-amber-500', to: 'to-orange-500', bg: 'bg-amber-500', light: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300' },
-    { from: 'from-blue-500', to: 'to-cyan-500', bg: 'bg-blue-500', light: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300' },
-    { from: 'from-rose-500', to: 'to-pink-500', bg: 'bg-rose-500', light: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-300' },
-    { from: 'from-teal-500', to: 'to-emerald-500', bg: 'bg-teal-500', light: 'bg-teal-100 dark:bg-teal-900/30', text: 'text-teal-700 dark:text-teal-300' },
+    { from: 'from-violet-500', to: 'to-purple-500', bg: 'bg-violet-500' },
+    { from: 'from-emerald-500', to: 'to-teal-500', bg: 'bg-emerald-500' },
+    { from: 'from-amber-500', to: 'to-orange-500', bg: 'bg-amber-500' },
+    { from: 'from-blue-500', to: 'to-cyan-500', bg: 'bg-blue-500' },
+    { from: 'from-rose-500', to: 'to-pink-500', bg: 'bg-rose-500' },
+    { from: 'from-teal-500', to: 'to-emerald-500', bg: 'bg-teal-500' },
   ];
 
   protected readonly segments = computed(() => {

@@ -1,4 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject, computed, signal } from '@angular/core';
+
+import { LoanRequestService } from './loan-request.service';
+import { UserService } from './user.service';
 
 import {
   ActivityItem,
@@ -14,27 +17,40 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
-  getKpis(): KpiCard[] {
+  private readonly loanService = inject(LoanRequestService);
+  private readonly userService = inject(UserService);
+
+  readonly kpis = computed<KpiCard[]>(() => {
+    const users = this.userService.users();
+    const prets = this.loanService.loanRequests();
+    const actifs = users.filter((u) => u.role === 'CLIENT' && u.statut === 'ACTIF').length;
+    const totalUsers = users.filter((u) => u.role === 'CLIENT').length;
+    const enAttente = prets.filter((p) => p.statut === 'EN_ATTENTE').length;
+    const approuves = prets.filter((p) => p.statut === 'APPROUVE').length;
+    const totalMontant = prets.filter((p) => p.statut === 'APPROUVE').reduce((s, p) => s + p.montant, 0);
+    const enCours = prets.filter((p) => p.statut === 'APPROUVE').length;
+    const txRemb = enCours > 0 ? Math.round((approuves / Math.max(enCours, 1)) * 100) : 92;
+
     return [
       {
         label: 'Membres actifs',
-        value: '1 248',
-        hint: 'sur 1 530 inscrits',
+        value: actifs.toLocaleString('fr-FR'),
+        hint: `sur ${totalUsers} inscrits`,
         trend: 4.2,
         icon: 'users',
         accent: 'brand',
       },
       {
         label: 'Montant deboursé',
-        value: '18,4 M FCFA',
-        hint: 'ce trimestre',
+        value: (totalMontant / 1_000_000).toFixed(1).replace('.', ',') + ' M FCFA',
+        hint: 'tous prêts approuvés',
         trend: 7.8,
         icon: 'cash',
         accent: 'sky',
       },
       {
         label: 'Demandes en attente',
-        value: '23',
+        value: enAttente.toString(),
         hint: 'à valider',
         trend: -1.5,
         icon: 'document',
@@ -42,170 +58,77 @@ export class DashboardService {
       },
       {
         label: 'Taux de remboursement',
-        value: '92,6 %',
-        hint: 'sur 12 mois',
+        value: txRemb + ' %',
+        hint: 'sur l\'ensemble',
         trend: 1.1,
         icon: 'check',
         accent: 'violet',
       },
     ];
+  });
+
+  readonly loanRequests = computed<LoanRequest[]>(() =>
+    this.loanService.loanRequests().map((p) => ({
+      id: 'PR-' + p.id,
+      clientName: p.clientNom || 'Client #' + p.clientId,
+      amount: p.montant,
+      score: p.score,
+      status: p.statut,
+      date: p.date || '',
+    }))
+  );
+
+  readonly recentActivity = signal<ActivityItem[]>([]);
+  readonly notifications = signal<NotificationItem[]>([]);
+  readonly disbursements = signal<ChartPoint[]>([]);
+  readonly repaymentTrend = signal<TrendSeries[]>([]);
+  readonly monthlyTarget = signal<MonthlyTarget | null>(null);
+  readonly riskBands = signal<RiskBand[]>([]);
+  readonly creditScore = signal<CreditScore>({
+    value: 74,
+    category: 'Risque faible',
+    updatedAt: 'Mis à jour aujourd\'hui',
+  });
+
+  constructor() {
+    this.loadFallbackData();
   }
 
-  getCreditScore(): CreditScore {
-    return {
-      value: 74,
-      category: 'Risque faible',
-      updatedAt: 'Mis à jour aujourd\'hui',
-    };
-  }
+  private loadFallbackData(): void {
+    this.recentActivity.set([
+      { id: 'a1', title: 'Remboursement reçu', description: 'Client — échéance reçue', time: 'Aujourd\'hui', type: 'repayment' as const },
+      { id: 'a2', title: 'Nouvelle demande de prêt', description: 'Nouvelle demande enregistrée', time: 'Aujourd\'hui', type: 'loan' as const },
+      { id: 'a3', title: 'Score recalculé', description: 'Mise à jour des scores', time: 'Aujourd\'hui', type: 'score' as const },
+      { id: 'a4', title: 'Compte validé', description: 'Nouveau client activé', time: 'Hier', type: 'account' as const },
+    ]);
 
-  getLoanRequests(): LoanRequest[] {
-    return [
-      {
-        id: 'PR-1042',
-        clientName: 'Awa Ngono',
-        amount: 250000,
-        score: 81,
-        status: 'EN_ATTENTE',
-        date: '11 juin 2026',
-      },
-      {
-        id: 'PR-1041',
-        clientName: 'Boris Talla',
-        amount: 500000,
-        score: 67,
-        status: 'EN_ATTENTE',
-        date: '10 juin 2026',
-      },
-      {
-        id: 'PR-1039',
-        clientName: 'Mireille Foka',
-        amount: 120000,
-        score: 88,
-        status: 'APPROUVE',
-        date: '09 juin 2026',
-      },
-      {
-        id: 'PR-1037',
-        clientName: 'Jean-Paul Mbida',
-        amount: 750000,
-        score: 41,
-        status: 'REJETE',
-        date: '08 juin 2026',
-      },
-      {
-        id: 'PR-1035',
-        clientName: 'Sandrine Eyenga',
-        amount: 300000,
-        score: 73,
-        status: 'EN_COURS',
-        date: '06 juin 2026',
-      },
-    ];
-  }
+    this.notifications.set([
+      { id: 'n1', message: 'Échéances à venir dans 7 jours.', time: 'Aujourd\'hui', level: 'warning' as const },
+      { id: 'n2', message: 'Rapport mensuel de scoring disponible.', time: 'Hier', level: 'info' as const },
+      { id: 'n3', message: 'Nouveaux comptes clients validés.', time: 'Il y a 2 j', level: 'success' as const },
+    ]);
 
-  getRecentActivity(): ActivityItem[] {
-    return [
-      {
-        id: 'a1',
-        title: 'Remboursement reçu',
-        description: 'Sandrine Eyenga — échéance 3/12 (35 000 FCFA)',
-        time: 'Il y a 12 min',
-        type: 'repayment',
-      },
-      {
-        id: 'a2',
-        title: 'Nouvelle demande de prêt',
-        description: 'Awa Ngono — 250 000 FCFA',
-        time: 'Il y a 1 h',
-        type: 'loan',
-      },
-      {
-        id: 'a3',
-        title: 'Score recalculé',
-        description: 'Boris Talla — nouveau score : 67/100',
-        time: 'Il y a 3 h',
-        type: 'score',
-      },
-      {
-        id: 'a4',
-        title: 'Compte validé',
-        description: 'Mireille Foka — compte client activé',
-        time: 'Hier',
-        type: 'account',
-      },
-    ];
-  }
+    this.disbursements.set([
+      { label: 'Jan', value: 9.2 }, { label: 'Fév', value: 11.4 }, { label: 'Mar', value: 8.7 },
+      { label: 'Avr', value: 13.1 }, { label: 'Mai', value: 15.6 }, { label: 'Jun', value: 18.4 },
+      { label: 'Jul', value: 14.2 }, { label: 'Aoû', value: 16.9 }, { label: 'Sep', value: 12.5 },
+      { label: 'Oct', value: 17.3 }, { label: 'Nov', value: 19.8 }, { label: 'Déc', value: 21.2 },
+    ]);
 
-  getMonthlyDisbursements(): ChartPoint[] {
-    return [
-      { label: 'Jan', value: 9.2 },
-      { label: 'Fév', value: 11.4 },
-      { label: 'Mar', value: 8.7 },
-      { label: 'Avr', value: 13.1 },
-      { label: 'Mai', value: 15.6 },
-      { label: 'Jun', value: 18.4 },
-      { label: 'Jul', value: 14.2 },
-      { label: 'Aoû', value: 16.9 },
-      { label: 'Sep', value: 12.5 },
-      { label: 'Oct', value: 17.3 },
-      { label: 'Nov', value: 19.8 },
-      { label: 'Déc', value: 21.2 },
-    ];
-  }
+    this.repaymentTrend.set([
+      { name: 'Décaissé', color: 'sky', values: [40, 52, 48, 61, 70, 78, 72, 80, 68, 84, 90, 96] },
+      { name: 'Remboursé', color: 'brand', values: [30, 44, 41, 55, 63, 72, 69, 76, 64, 79, 85, 92] },
+    ]);
 
-  getRepaymentTrend(): TrendSeries[] {
-    return [
-      {
-        name: 'Décaissé',
-        color: 'sky',
-        values: [40, 52, 48, 61, 70, 78, 72, 80, 68, 84, 90, 96],
-      },
-      {
-        name: 'Remboursé',
-        color: 'brand',
-        values: [30, 44, 41, 55, 63, 72, 69, 76, 64, 79, 85, 92],
-      },
-    ];
-  }
+    this.monthlyTarget.set({
+      percent: 76, target: '24 M FCFA', achieved: '18,4 M FCFA',
+      comment: 'Vous avez décaissé 18,4 M FCFA ce mois-ci.',
+    });
 
-  getMonthlyTarget(): MonthlyTarget {
-    return {
-      percent: 76,
-      target: '24 M FCFA',
-      achieved: '18,4 M FCFA',
-      comment: 'Vous avez décaissé 18,4 M FCFA ce mois-ci, soit 12 % de plus que le mois dernier. Maintenez le cap !',
-    };
-  }
-
-  getRiskDistribution(): RiskBand[] {
-    return [
+    this.riskBands.set([
       { label: 'Risque faible', count: 742, percent: 59, tone: 'brand' },
       { label: 'Risque moyen', count: 386, percent: 31, tone: 'amber' },
       { label: 'Risque élevé', count: 120, percent: 10, tone: 'red' },
-    ];
-  }
-
-  getNotifications(): NotificationItem[] {
-    return [
-      {
-        id: 'n1',
-        message: '3 échéances arrivent à terme dans 7 jours.',
-        time: 'Aujourd\'hui',
-        level: 'warning',
-      },
-      {
-        id: 'n2',
-        message: 'Le rapport mensuel de scoring est disponible.',
-        time: 'Hier',
-        level: 'info',
-      },
-      {
-        id: 'n3',
-        message: '2 nouveaux comptes clients ont été validés.',
-        time: 'Il y a 2 j',
-        level: 'success',
-      },
-    ];
+    ]);
   }
 }

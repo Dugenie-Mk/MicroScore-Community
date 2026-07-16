@@ -3,7 +3,11 @@
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-xl font-bold text-gray-900 dark:text-white">Remboursements</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400">{{ loans().length }} prêt(s) en cours</p>
+      @if (loading()) {
+        <p class="text-sm text-gray-500 dark:text-gray-400">Chargement...</p>
+      } @else {
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ loans().length }} prêt(s) en cours</p>
+      }
     </div>
     <div class="flex flex-wrap items-center gap-2">
       <a routerLink="/client/repayment-request" class="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 active:scale-95">
@@ -56,7 +60,15 @@
 
   <!-- Loan repayment cards -->
   <div class="space-y-4">
-    @for (loan of loans(); track loan.id) {
+    @if (loading()) {
+      <div class="flex items-center justify-center py-12">
+        <svg class="h-6 w-6 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+        </svg>
+      </div>
+    } @else {
+      @for (loan of loans(); track loan.idPret) {
       <div class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800">
@@ -125,28 +137,35 @@
           <div class="border-t border-gray-100 px-5 py-3 dark:border-gray-800">
             <div class="space-y-1.5">
               @for (ech of loan.echeances; track ech.id) {
+                @let estPaye = ech.statut === 'PAYE';
                 <div class="flex flex-wrap items-center justify-between gap-1 rounded-lg px-3 py-2 text-xs"
-                  [class.bg-green-50]="ech.paye"
-                  [class.dark:bg-green-950/10]="ech.paye"
-                  [class.bg-gray-50]="!ech.paye"
-                  [class.dark:bg-gray-800/30]="!ech.paye"
+                  [class.bg-green-50]="estPaye"
+                  [class.dark:bg-green-950/10]="estPaye"
+                  [class.bg-gray-50]="!estPaye"
+                  [class.dark:bg-gray-800/30]="!estPaye"
                 >
                   <div class="flex items-center gap-2.5">
-                    @if (ech.paye) {
+                    @if (estPaye) {
                       <svg class="h-4 w-4 shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                      </svg>
+                    } @else if (ech.statut === 'EN_RETARD') {
+                      <svg class="h-4 w-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                       </svg>
                     } @else {
                       <svg class="h-4 w-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                       </svg>
                     }
-                    <span class="text-gray-700 dark:text-gray-300">{{ ech.dateEcheance }}</span>
+                    <span class="text-gray-700 dark:text-gray-300">{{ ech.dateEcheancePrevue.substring(0, 10) }}</span>
                   </div>
                   <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span class="font-medium text-gray-900 dark:text-white whitespace-nowrap">{{ ech.montant | number:'1.0-0' }}</span>
-                    @if (ech.paye && ech.datePaiement) {
-                      <span class="text-gray-400 text-[10px]">Payé le {{ ech.datePaiement }}</span>
+                    <span class="font-medium text-gray-900 dark:text-white whitespace-nowrap">{{ ech.mensualite | number:'1.0-0' }}</span>
+                    @if (estPaye && ech.datePaiement) {
+                      <span class="text-gray-400 text-[10px]">Payé le {{ ech.datePaiement.substring(0, 10) }}</span>
+                    } @else if (ech.statut === 'EN_RETARD') {
+                      <span class="text-red-600 dark:text-red-400 text-[10px]">En retard</span>
                     } @else {
                       <span class="text-amber-600 dark:text-amber-400 text-[10px]">À payer</span>
                     }
@@ -157,15 +176,17 @@
           </div>
         </details>
       </div>
-    } @empty {
-      <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
-        <p class="text-sm text-gray-500 dark:text-gray-400">Aucun remboursement à effectuer</p>
-      </div>
+      }
+      @empty {
+        <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Aucun remboursement à effectuer</p>
+        </div>
+      }
     }
   </div>
 
   <!-- Modal de paiement -->
-  @if (showPayModal()) {
+  @if (showPayModal(); as _) {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
       <div class="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900">
         @if (paiementEffectue()) {
@@ -177,13 +198,14 @@
             </span>
             <h3 class="mt-4 text-lg font-bold text-gray-900 dark:text-white">Paiement effectué</h3>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {{ montantPaiement() | number:'1.0-0' }} FCFA remboursés pour <strong>{{ selectedLoan()?.motif }}</strong>
+              Échéance remboursée pour <strong>{{ selectedLoan()?.motif }}</strong>
             </p>
             <button (click)="closePayModal()" class="mt-6 rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
               Fermer
             </button>
           </div>
         } @else {
+          @let echeance = selectedEcheance();
           <div class="mb-5 flex items-center justify-between">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white">Effectuer un paiement</h3>
             <button (click)="closePayModal()" class="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
@@ -202,23 +224,19 @@
               <span class="text-gray-500 dark:text-gray-400">Reste dû</span>
               <span class="font-semibold text-red-600 dark:text-red-400">{{ selectedLoan()?.resteARembourser | number:'1.0-0' }} FCFA</span>
             </div>
+            @if (echeance) {
+              <div class="mt-2 flex items-center justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Échéance à payer</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{{ echeance.mensualite | number:'1.0-0' }} FCFA</span>
+              </div>
+              <div class="mt-1 flex items-center justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Date échéance</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{{ echeance.dateEcheancePrevue.substring(0, 10) }}</span>
+              </div>
+            }
           </div>
 
           <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Montant à payer</label>
-              <div class="relative">
-                <input
-                  type="number"
-                  [ngModel]="montantPaiement()"
-                  (ngModelChange)="montantPaiement.set($event)"
-                  min="0"
-                  [max]="selectedLoan()?.resteARembourser ?? 0"
-                  class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 pr-16 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                />
-                <span class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">FCFA</span>
-              </div>
-            </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Mode de paiement</label>
               <div class="grid grid-cols-2 gap-2">
@@ -248,10 +266,18 @@
             </button>
             <button
               (click)="effectuerPaiement()"
-              [disabled]="montantPaiement() <= 0 || montantPaiement() > (selectedLoan()?.resteARembourser ?? 0)"
-              class="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 truncate"
+              [disabled]="!selectedEcheance() || paiementEnCours()"
+              class="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 truncate"
             >
-              Payer {{ montantPaiement() | number:'1.0-0' }} FCFA
+              @if (paiementEnCours()) {
+                <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+                </svg>
+                Paiement...
+              } @else {
+                Payer {{ selectedEcheance()?.mensualite | number:'1.0-0' }} FCFA
+              }
             </button>
           </div>
         }

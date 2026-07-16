@@ -65,11 +65,15 @@ public class User {
 
     private LocalDateTime derniereConnexion;
 
+    private String profession;
+
+    private String secteurActivite;
+
     public enum Role {
-        CLIENT, GESTIONNAIRE, ADMINISTRATEUR
+        CLIENT, GESTIONNAIRE, ADMIN
     }
 
     public enum StatutCompte {
-        ACTIF, INACTIF, EN_ATTENTE
+        ACTIF, BLOQUE, EN_ATTENTE
     }
 }

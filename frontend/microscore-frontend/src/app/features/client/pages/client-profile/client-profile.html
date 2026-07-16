@@ -50,7 +50,7 @@
         </div>
         <div class="rounded-xl bg-gray-50/70 px-4 py-3 dark:bg-gray-800/30">
           <p class="text-[10px] uppercase tracking-wider text-gray-400">Date de naissance</p>
-          <input [(ngModel)]="editForm().dateNaissance" class="mt-0.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white" placeholder="JJ/MM/AAAA" />
+          <input type="date" [(ngModel)]="editForm().dateNaissance" class="mt-0.5 w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white [color-scheme:light] dark:[color-scheme:dark]" />
         </div>
         <div class="rounded-xl bg-gray-50/70 px-4 py-3 dark:bg-gray-800/30">
           <p class="text-[10px] uppercase tracking-wider text-gray-400">Sexe</p>

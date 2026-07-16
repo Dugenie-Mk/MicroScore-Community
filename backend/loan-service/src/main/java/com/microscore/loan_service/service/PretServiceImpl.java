@@ -1,6 +1,7 @@
 package com.microscore.loan_service.service;
 
 import com.microscore.loan_service.client.RepaymentServiceClient;
+import com.microscore.loan_service.dto.CreerPretRequest;
 import com.microscore.loan_service.dto.DeciderStatutRequest;
 import com.microscore.loan_service.dto.EnregistrerScoreRequest;
 import com.microscore.loan_service.dto.GenererGrilleClientRequest;
@@ -32,6 +33,27 @@ public class PretServiceImpl implements PretService {
     private final RepaymentServiceClient repaymentServiceClient;
 
 
+    // ===================== CRÉER UNE DEMANDE DE PRÊT (CLIENT) =====================
+    @Override
+    @Transactional
+    public PretResponse creerPret(CreerPretRequest request) {
+        Long nextId = pretRepository.findMaxIdPret() + 1;
+
+        Pret pret = Pret.builder()
+                .idPret(nextId)
+                .idClient(request.getIdClient())
+                .motif(request.getMotif())
+                .scoreTotal(0.0)
+                .montant(request.getMontant())
+                .dureeRemboursementMois(request.getDureeRemboursementMois())
+                .statut(StatutPret.EN_ATTENTE)
+                .build();
+
+        Pret pretSauvegarde = pretRepository.save(pret);
+        return pretMapper.toResponse(pretSauvegarde);
+    }
+
+
     // ===================== ENREGISTRER SCORE + CRÉER LE PRÊT =====================
     @Override
     @Transactional
@@ -45,6 +67,7 @@ public class PretServiceImpl implements PretService {
         Pret pret = Pret.builder()
                 .idPret(request.getIdPret())
                 .idClient(request.getIdClient())
+                .motif(request.getMotif())
                 .scoreTotal(request.getScoreTotal())
                 .montant(request.getMontant())
                 .dureeRemboursementMois(request.getDureeRemboursementMois())
@@ -56,6 +79,14 @@ public class PretServiceImpl implements PretService {
         return pretMapper.toResponse(pretSauvegarde);
     }
 
+
+    // ===================== RÉCUPÉRER TOUS LES PRÊTS =====================
+    @Override
+    public List<PretResponse> getAllPrets() {
+        return pretRepository.findAll().stream()
+                .map(pretMapper::toResponse)
+                .toList();
+    }
 
     // ===================== RÉCUPÉRER UN PRÊT PAR SON ID =====================
     @Override
@@ -104,8 +135,8 @@ public class PretServiceImpl implements PretService {
 
         Pret pretMisAJour = pretRepository.save(pret);
 
-        // Si le prêt est ACCEPTE, générer automatiquement la grille d'amortissement
-        if (request.getStatut() == StatutPret.ACCEPTE) {
+        // Si le prêt est APPROUVE, générer automatiquement la grille d'amortissement
+        if (request.getStatut() == StatutPret.APPROUVE) {
             notifierRepaymentService(pretMisAJour);
         }
 

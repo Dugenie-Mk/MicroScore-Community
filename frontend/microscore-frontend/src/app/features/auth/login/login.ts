@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 
 interface DemoAccount {
   label: string;
@@ -20,6 +21,7 @@ interface DemoAccount {
 export class Login {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   protected readonly email = signal('');
   protected readonly password = signal('');
@@ -63,14 +65,17 @@ export class Login {
 
     this.loading.set(true);
 
-    this.auth.login(this.email(), this.password()).subscribe((user) => {
-      this.loading.set(false);
-      if (!user) {
+    this.auth.login(this.email(), this.password()).subscribe({
+      next: (res) => {
+        this.loading.set(false);
+        this.toast.show('Connecté en tant que ' + res.user.fullName, 'success');
+        const route = res.user.role === 'CLIENT' ? '/client/dashboard' : '/dashboard';
+        this.router.navigate([route]);
+      },
+      error: () => {
+        this.loading.set(false);
         this.error.set('Email ou mot de passe incorrect.');
-        return;
-      }
-      const route = user.role === 'CLIENT' ? '/client/dashboard' : '/dashboard';
-      this.router.navigate([route]);
+      },
     });
   }
 }

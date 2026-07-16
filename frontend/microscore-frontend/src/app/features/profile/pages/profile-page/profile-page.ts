@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 @Component({
   selector: 'app-profile-page',
@@ -14,6 +15,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 export class ProfilePage {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   protected readonly user = computed(() => this.auth.currentUser());
 
@@ -56,6 +58,7 @@ export class ProfilePage {
   protected saveProfile(): void {
     const form = this.editForm();
     this.auth.updateProfile({ telephone: form.telephone || undefined });
+    this.toast.show('Profil mis à jour', 'success');
     this.editing.set(false);
   }
 
@@ -67,6 +70,7 @@ export class ProfilePage {
 
   protected logout(): void {
     this.auth.logout();
+    this.toast.show('Vous êtes déconnecté', 'info');
     this.router.navigate(['/login']);
   }
 }

@@ -1,19 +1,15 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
-interface Echeance {
-  id: number;
-  dateEcheance: string;
-  montant: number;
-  paye: boolean;
-  datePaiement?: string;
-}
+import { AuthService } from '../../../../core/services/auth.service';
+import { LoanRequestService } from '../../../../core/services/loan-request.service';
+import { RepaymentService, EcheanceDto } from '../../../../core/services/repayment.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 interface LoanOption {
-  id: number;
-  loanId: number;
+  idPret: number;
   motif: string;
   montantEmprunte: number;
   totalARembourser: number;
@@ -21,7 +17,7 @@ interface LoanOption {
   resteARembourser: number;
   dateProchaineEcheance: string;
   statut: 'SOLDÉ' | 'EN_COURS' | 'EN_RETARD';
-  echeances: Echeance[];
+  echeances: EcheanceDto[];
 }
 
 @Component({
@@ -31,48 +27,26 @@ interface LoanOption {
   templateUrl: './client-repayment-form.html',
 })
 export class ClientRepaymentForm {
+  private readonly auth = inject(AuthService);
+  private readonly loanService = inject(LoanRequestService);
+  private readonly repaymentService = inject(RepaymentService);
+  private readonly toast = inject(ToastService);
+
   protected readonly modesPaiement = ['Virement', 'Cash', 'Mobile Money', 'Chèque'];
 
-  protected readonly loans = signal<LoanOption[]>([
-    {
-      id: 2, loanId: 2, motif: 'Frais Scolaires', montantEmprunte: 300000,
-      totalARembourser: 315000, montantRembourse: 100000, resteARembourser: 215000,
-      dateProchaineEcheance: '15/07/2026', statut: 'EN_COURS',
-      echeances: [
-        { id: 7, dateEcheance: '15/05/2026', montant: 52500, paye: true, datePaiement: '15/05/2026' },
-        { id: 8, dateEcheance: '15/06/2026', montant: 52500, paye: true, datePaiement: '16/06/2026' },
-        { id: 9, dateEcheance: '15/07/2026', montant: 52500, paye: false },
-        { id: 10, dateEcheance: '15/08/2026', montant: 52500, paye: false },
-        { id: 11, dateEcheance: '15/09/2026', montant: 52500, paye: false },
-        { id: 12, dateEcheance: '15/10/2026', montant: 52500, paye: false },
-      ],
-    },
-    {
-      id: 3, loanId: 3, motif: 'Commerce', montantEmprunte: 350000,
-      totalARembourser: 367500, montantRembourse: 0, resteARembourser: 367500,
-      dateProchaineEcheance: '20/08/2026', statut: 'EN_COURS',
-      echeances: [
-        { id: 13, dateEcheance: '20/08/2026', montant: 91875, paye: false },
-        { id: 14, dateEcheance: '20/09/2026', montant: 91875, paye: false },
-        { id: 15, dateEcheance: '20/10/2026', montant: 91875, paye: false },
-        { id: 16, dateEcheance: '20/11/2026', montant: 91875, paye: false },
-      ],
-    },
-  ]);
-
-  protected readonly actifs = computed(() => this.loans().filter((l) => l.statut !== 'SOLDÉ'));
+  protected readonly loans = signal<LoanOption[]>([]);
+  protected readonly loading = signal(true);
 
   protected selectedLoanId = signal<number | null>(null);
-  protected selectedLoan = computed(() => this.loans().find((l) => l.id === this.selectedLoanId()) ?? null);
+  protected selectedLoan = computed(() => this.loans().find((l) => l.idPret === this.selectedLoanId()) ?? null);
 
-  protected montantPaiement = signal(0);
   protected modePaiement = signal('Virement');
-
   protected submitted = signal(false);
   protected reference = signal('');
+  protected paiementEnCours = signal(false);
 
   protected readonly echeancesRestantes = computed(() =>
-    this.selectedLoan()?.echeances.filter((e) => !e.paye) ?? []
+    this.selectedLoan()?.echeances.filter((e) => e.statut !== 'PAYE') ?? []
   );
 
   protected readonly prochaineEcheance = computed(() => {
@@ -80,51 +54,92 @@ export class ClientRepaymentForm {
     return restantes.length > 0 ? restantes[0] : null;
   });
 
-  protected readonly montantSuggere = computed(() => this.prochaineEcheance()?.montant ?? 0);
+  constructor() {
+    this.loadLoans();
+  }
+
+  private loadLoans(): void {
+    const userId = this.auth.currentUser()?.id;
+    if (!userId) {
+      this.loading.set(false);
+      return;
+    }
+
+    this.loanService.getByClientId(userId).subscribe({
+      next: (prets) => {
+        const approuves = prets.filter((p) => p.statut === 'APPROUVE');
+        if (approuves.length === 0) {
+          this.loading.set(false);
+          return;
+        }
+        let completed = 0;
+        for (const pret of approuves) {
+          this.repaymentService.getAmortissementByPret(pret.idPret).subscribe({
+            next: (grille) => {
+              const payees = grille.echeances.filter((e) => e.statut === 'PAYE');
+              const totalRembourse = payees.reduce((s, e) => s + e.mensualite, 0);
+              const allPayees = grille.echeances.every((e) => e.statut === 'PAYE');
+              const enRetard = grille.echeances.some((e) => e.statut === 'EN_RETARD');
+              const prochaine = grille.echeances.find((e) => e.statut === 'EN_ATTENTE' || e.statut === 'EN_RETARD');
+
+              let statutRemb: 'SOLDÉ' | 'EN_COURS' | 'EN_RETARD' = 'EN_COURS';
+              if (allPayees) statutRemb = 'SOLDÉ';
+              else if (enRetard) statutRemb = 'EN_RETARD';
+
+              this.loans.update((items) => [
+                ...items,
+                {
+                  idPret: pret.idPret,
+                  motif: pret.motif || '',
+                  montantEmprunte: grille.montantEmprunte,
+                  totalARembourser: grille.coutTotalCredit,
+                  montantRembourse: totalRembourse,
+                  resteARembourser: grille.coutTotalCredit - totalRembourse,
+                  dateProchaineEcheance: prochaine ? prochaine.dateEcheancePrevue : '-',
+                  statut: statutRemb,
+                  echeances: grille.echeances,
+                },
+              ]);
+            },
+            error: () => {},
+            complete: () => {
+              completed++;
+              if (completed === approuves.length) this.loading.set(false);
+            },
+          });
+        }
+      },
+      error: () => this.loading.set(false),
+    });
+  }
 
   protected selectLoan(id: number): void {
     this.selectedLoanId.set(id);
-    const loan = this.loans().find((l) => l.id === id);
-    if (loan) {
-      const next = loan.echeances.find((e) => !e.paye);
-      this.montantPaiement.set(next?.montant ?? 0);
-    }
     this.modePaiement.set('Virement');
     this.submitted.set(false);
   }
 
   protected submit(): void {
-    const loan = this.selectedLoan();
-    if (!loan || this.montantPaiement() <= 0) return;
+    const echeance = this.prochaineEcheance();
+    if (!echeance) return;
 
-    const ref = 'PAY-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-    this.reference.set(ref);
+    this.paiementEnCours.set(true);
 
-    this.loans.update((loans) =>
-      loans.map((l) => {
-        if (l.id !== loan.id) return l;
-        let reste = this.montantPaiement();
-        const newEcheances = l.echeances.map((e) => {
-          if (e.paye || reste <= 0) return e;
-          const payeMontant = Math.min(reste, e.montant);
-          reste -= payeMontant;
-          return { ...e, paye: true, datePaiement: new Date().toLocaleDateString('fr-FR') };
-        });
-        const newMontantRembourse = l.montantRembourse + this.montantPaiement();
-        const newReste = l.totalARembourser - newMontantRembourse;
-        const allPayees = newEcheances.every((e) => e.paye);
-        return {
-          ...l,
-          montantRembourse: newMontantRembourse,
-          resteARembourser: Math.max(0, newReste),
-          statut: allPayees ? 'SOLDÉ' as const : l.statut,
-          echeances: newEcheances,
-          dateProchaineEcheance: allPayees ? '-' : (newEcheances.find((e) => !e.paye)?.dateEcheance ?? '-'),
-        };
-      })
-    );
-
-    this.submitted.set(true);
+    this.repaymentService.payerEcheance(echeance.id).subscribe({
+      next: () => {
+        this.paiementEnCours.set(false);
+        const ref = 'PAY-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+        this.reference.set(ref);
+        this.submitted.set(true);
+        this.toast.show('Paiement effectué avec succès.', 'success');
+        this.loadLoans();
+      },
+      error: (err) => {
+        this.paiementEnCours.set(false);
+        const msg = err.error?.message || err.message || 'Erreur lors du paiement.';
+        this.toast.show(msg, 'error');
+      },
+    });
   }
 
   protected getStatusClass(statut: string): string {

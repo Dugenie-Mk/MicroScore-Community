@@ -11,10 +11,11 @@ import java.time.LocalDateTime;
 public class UserMapper {
 
     public UserDTO toDTO(User user) {
+        String fullName = (user.getPrenom() != null ? user.getPrenom() + " " : "") +
+                (user.getNom() != null ? user.getNom() : "");
         return UserDTO.builder()
                 .id(user.getId())
-                .nom(user.getNom())
-                .prenom(user.getPrenom())
+                .fullName(fullName.trim())
                 .email(user.getEmail())
                 .telephone(user.getTelephone())
                 .role(user.getRole())
@@ -23,13 +24,21 @@ public class UserMapper {
                 .situationMatrimoniale(user.getSituationMatrimoniale())
                 .niveauEducation(user.getNiveauEducation())
                 .personnesACharge(user.getPersonnesACharge())
+                .profession(user.getProfession())
+                .secteurActivite(user.getSecteurActivite())
+                .dateCreation(user.getDateCreation())
+                .derniereConnexion(user.getDerniereConnexion())
                 .build();
     }
 
     public User toEntity(UserCreateDTO dto) {
+        String[] parts = dto.getFullName().trim().split(" ", 2);
+        String prenom = parts[0];
+        String nom = parts.length > 1 ? parts[1] : "";
+
         return User.builder()
-                .nom(dto.getNom())
-                .prenom(dto.getPrenom())
+                .nom(nom)
+                .prenom(prenom)
                 .email(dto.getEmail())
                 .motDePasse(dto.getMotDePasse())
                 .telephone(dto.getTelephone())
@@ -39,6 +48,8 @@ public class UserMapper {
                 .situationMatrimoniale(dto.getSituationMatrimoniale())
                 .niveauEducation(dto.getNiveauEducation())
                 .personnesACharge(dto.getPersonnesACharge())
+                .profession(dto.getProfession())
+                .secteurActivite(dto.getSecteurActivite())
                 .dateCreation(LocalDateTime.now())
                 .build();
     }

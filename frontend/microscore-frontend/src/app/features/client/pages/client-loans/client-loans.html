@@ -3,7 +3,11 @@
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-xl font-bold text-gray-900 dark:text-white">Mes prêts</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400">{{ loans().length }} demande(s)</p>
+      @if (loading()) {
+        <p class="text-sm text-gray-500 dark:text-gray-400">Chargement...</p>
+      } @else {
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ loans().length }} demande(s)</p>
+      }
     </div>
     <a routerLink="/client/loan-request" class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 active:scale-95">
       <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -14,57 +18,70 @@
   </div>
 
   <!-- Stats mini cards -->
-  <div class="grid grid-cols-3 gap-2 sm:gap-3">
-    <div class="rounded-xl border border-green-100 bg-green-50/50 p-2 sm:p-3 text-center dark:border-green-900/30 dark:bg-green-950/20">
-      <p class="text-base sm:text-lg font-bold text-green-700 dark:text-green-300">{{ loans().filter(l => l.statut === 'ACCORDÉ').length }}</p>
-      <p class="text-[10px] font-medium uppercase tracking-wider text-green-600 dark:text-green-400">Approuvés</p>
+  @if (!loading()) {
+    <div class="grid grid-cols-3 gap-2 sm:gap-3">
+      <div class="rounded-xl border border-green-100 bg-green-50/50 p-2 sm:p-3 text-center dark:border-green-900/30 dark:bg-green-950/20">
+        <p class="text-base sm:text-lg font-bold text-green-700 dark:text-green-300">{{ loans().filter(l => l.statutLabel === 'ACCORDÉ').length }}</p>
+        <p class="text-[10px] font-medium uppercase tracking-wider text-green-600 dark:text-green-400">Approuvés</p>
+      </div>
+      <div class="rounded-xl border border-red-100 bg-red-50/50 p-2 sm:p-3 text-center dark:border-red-900/30 dark:bg-red-950/20">
+        <p class="text-base sm:text-lg font-bold text-red-700 dark:text-red-300">{{ loans().filter(l => l.statutLabel === 'REFUSÉ').length }}</p>
+        <p class="text-[10px] font-medium uppercase tracking-wider text-red-600 dark:text-red-400">Refusés</p>
+      </div>
+      <div class="rounded-xl border border-amber-100 bg-amber-50/50 p-2 sm:p-3 text-center dark:border-amber-900/30 dark:bg-amber-950/20">
+        <p class="text-base sm:text-lg font-bold text-amber-700 dark:text-amber-300">{{ loans().filter(l => l.statutLabel === 'EN_ATTENTE').length }}</p>
+        <p class="text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">En attente</p>
+      </div>
     </div>
-    <div class="rounded-xl border border-red-100 bg-red-50/50 p-2 sm:p-3 text-center dark:border-red-900/30 dark:bg-red-950/20">
-      <p class="text-base sm:text-lg font-bold text-red-700 dark:text-red-300">{{ loans().filter(l => l.statut === 'REFUSÉ').length }}</p>
-      <p class="text-[10px] font-medium uppercase tracking-wider text-red-600 dark:text-red-400">Refusés</p>
-    </div>
-    <div class="rounded-xl border border-amber-100 bg-amber-50/50 p-2 sm:p-3 text-center dark:border-amber-900/30 dark:bg-amber-950/20">
-      <p class="text-base sm:text-lg font-bold text-amber-700 dark:text-amber-300">{{ loans().filter(l => l.statut === 'EN_ATTENTE').length }}</p>
-      <p class="text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">En attente</p>
-    </div>
-  </div>
+  }
 
   <!-- Loan cards -->
   <div class="space-y-3">
-    @for (loan of loans(); track loan.id) {
-      <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <div class="flex items-start justify-between">
-          <div>
-            <p class="font-semibold text-gray-900 dark:text-white">{{ loan.motif }}</p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">{{ loan.date }} · {{ loan.duree }} · {{ loan.taux }}%</p>
-          </div>
-          <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getStatusClass(loan.statut) }}">
-            @switch (loan.statut) {
-              @case ('ACCORDÉ') { Approuvé }
-              @case ('REFUSÉ') { Refusé }
-              @case ('EN_ATTENTE') { En attente }
-            }
-          </span>
-        </div>
-        <div class="mt-3 grid grid-cols-3 gap-1 sm:gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
-          <div>
-            <p class="text-[10px] text-gray-500 dark:text-gray-400">Montant</p>
-            <p class="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white truncate">{{ loan.montant | number:'1.0-0' }}</p>
-          </div>
-          <div>
-            <p class="text-[10px] text-gray-500 dark:text-gray-400">Remboursé</p>
-            <p class="text-xs sm:text-sm font-semibold text-green-700 dark:text-green-400 truncate">{{ loan.rembourse | number:'1.0-0' }}</p>
-          </div>
-          <div>
-            <p class="text-[10px] text-gray-500 dark:text-gray-400">Reste</p>
-            <p class="text-xs sm:text-sm font-semibold truncate" [class.text-red-700]="loan.reste > 0" [class.dark:text-red-400]="loan.reste > 0" [class.text-gray-900]="loan.reste === 0" [class.dark:text-white]="loan.reste === 0">{{ loan.reste | number:'1.0-0' }}</p>
-          </div>
-        </div>
+    @if (loading()) {
+      <div class="flex items-center justify-center py-12">
+        <svg class="h-6 w-6 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+        </svg>
       </div>
-    } @empty {
-      <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
-        <p class="text-sm text-gray-500 dark:text-gray-400">Aucun prêt pour le moment</p>
-      </div>
+    } @else {
+      @for (loan of loans(); track loan.idPret) {
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="font-semibold text-gray-900 dark:text-white">{{ loan.motif }}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ loan.date }} · {{ loan.duree }} · Score: {{ loan.score }}</p>
+            </div>
+            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getStatusClass(loan.statutLabel) }}">
+              @switch (loan.statutLabel) {
+                @case ('ACCORDÉ') { Approuvé }
+                @case ('REFUSÉ') { Refusé }
+                @case ('EN_ATTENTE') { En attente }
+              }
+            </span>
+          </div>
+          @if (loan.statutLabel === 'ACCORDÉ') {
+            <div class="mt-3 grid grid-cols-3 gap-1 sm:gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+              <div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400">Montant</p>
+                <p class="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white truncate">{{ loan.montant | number:'1.0-0' }}</p>
+              </div>
+              <div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400">Remboursé</p>
+                <p class="text-xs sm:text-sm font-semibold text-green-700 dark:text-green-400 truncate">{{ loan.rembourse | number:'1.0-0' }}</p>
+              </div>
+              <div>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400">Reste</p>
+                <p class="text-xs sm:text-sm font-semibold truncate" [class.text-red-700]="loan.reste > 0" [class.dark:text-red-400]="loan.reste > 0" [class.text-gray-900]="loan.reste === 0" [class.dark:text-white]="loan.reste === 0">{{ loan.reste | number:'1.0-0' }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Aucun prêt pour le moment</p>
+        </div>
+      }
     }
   </div>
 </div>

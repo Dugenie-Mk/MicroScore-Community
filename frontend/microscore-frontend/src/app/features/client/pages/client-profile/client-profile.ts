@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 
 import { AuthService, DocumentInfo, ScoringCritere } from '../../../../core/services/auth.service';
 import { ScoringParamService } from '../../../../core/services/scoring-param.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 @Component({
   selector: 'app-client-profile',
@@ -15,6 +16,7 @@ import { ScoringParamService } from '../../../../core/services/scoring-param.ser
 export class ClientProfile {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
   protected readonly scoringParams = inject(ScoringParamService);
   protected readonly totalPoids = computed(() =>
     this.scoringParams.parametres().reduce((s, p) => s + p.poids, 0)
@@ -44,13 +46,21 @@ export class ClientProfile {
     if (!u) return;
     this.editForm.set({
       telephone: u.telephone || '',
-      dateNaissance: u.dateNaissance || '',
+      dateNaissance: this.toDateInputFormat(u.dateNaissance || ''),
       sexe: u.sexe || '',
       situationMatrimoniale: u.situationMatrimoniale || '',
       profession: u.profession || '',
       secteurActivite: u.secteurActivite || '',
     });
     this.editing.set(true);
+  }
+
+  private toDateInputFormat(d: string): string {
+    if (!d) return '';
+    if (d.includes('-')) return d.substring(0, 10);
+    const parts = d.split('/');
+    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    return d;
   }
 
   protected cancelEditing(): void {
@@ -67,6 +77,7 @@ export class ClientProfile {
       profession: form.profession || undefined,
       secteurActivite: form.secteurActivite || undefined,
     });
+    this.toast.show('Profil mis à jour', 'success');
     this.editing.set(false);
   }
 
@@ -125,6 +136,7 @@ export class ClientProfile {
 
   protected logout(): void {
     this.auth.logout();
+    this.toast.show('Vous êtes déconnecté', 'info');
     this.router.navigate(['/login']);
   }
 }

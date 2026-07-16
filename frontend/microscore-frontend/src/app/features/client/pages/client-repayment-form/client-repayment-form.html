@@ -7,7 +7,7 @@
     </span>
     <h2 class="mt-4 text-lg font-bold text-gray-900 dark:text-white">Paiement effectué</h2>
     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-      {{ montantPaiement() | number:'1.0-0' }} FCFA remboursés sur <strong>{{ selectedLoan()?.motif }}</strong>
+      {{ prochaineEcheance()?.mensualite | number:'1.0-0' }} FCFA remboursés sur <strong>{{ selectedLoan()?.motif }}</strong>
     </p>
     <div class="mt-2 rounded-lg bg-gray-50 px-4 py-2 dark:bg-gray-800/30">
       <p class="text-xs text-gray-400 dark:text-gray-500">Référence</p>
@@ -43,7 +43,14 @@
         <!-- Sélection du prêt -->
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prêt à rembourser *</label>
-          @if (actifs().length === 0) {
+          @if (loading()) {
+            <div class="flex items-center justify-center py-8">
+              <svg class="h-5 w-5 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+              </svg>
+            </div>
+          } @else if (loans().length === 0) {
             <div class="rounded-xl border border-dashed border-gray-300 p-6 text-center dark:border-gray-700">
               <p class="text-sm text-gray-500 dark:text-gray-400">Aucun prêt en cours à rembourser</p>
               <a routerLink="/client/loan-request" class="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400">
@@ -52,16 +59,16 @@
             </div>
           } @else {
             <div class="grid gap-3">
-              @for (loan of actifs(); track loan.id) {
+              @for (loan of loans(); track loan.idPret) {
                 <button
-                  (click)="selectLoan(loan.id)"
+                  (click)="selectLoan(loan.idPret)"
                   class="w-full text-left rounded-xl border-2 p-3 sm:p-4 transition-all"
-                  [class.border-brand-600]="selectedLoanId() === loan.id"
-                  [class.bg-brand-50]="selectedLoanId() === loan.id"
-                  [class.border-gray-200]="selectedLoanId() !== loan.id"
-                  [class.hover:border-gray-300]="selectedLoanId() !== loan.id"
-                  [class.dark:border-gray-700]="selectedLoanId() !== loan.id"
-                  [class.dark:bg-gray-800]="selectedLoanId() === loan.id"
+                  [class.border-brand-600]="selectedLoanId() === loan.idPret"
+                  [class.bg-brand-50]="selectedLoanId() === loan.idPret"
+                  [class.border-gray-200]="selectedLoanId() !== loan.idPret"
+                  [class.hover:border-gray-300]="selectedLoanId() !== loan.idPret"
+                  [class.dark:border-gray-700]="selectedLoanId() !== loan.idPret"
+                  [class.dark:bg-gray-800]="selectedLoanId() === loan.idPret"
                 >
                   <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0">
@@ -113,8 +120,8 @@
                 <div class="space-y-1">
                   @for (ech of echeancesRestantes(); track ech.id) {
                     <div class="flex items-center justify-between rounded-lg bg-white px-3 py-1.5 text-xs dark:bg-gray-800">
-                      <span class="text-gray-600 dark:text-gray-300">{{ ech.dateEcheance }}</span>
-                      <span class="font-medium text-gray-900 dark:text-white">{{ ech.montant | number:'1.0-0' }} FCFA</span>
+                      <span class="text-gray-600 dark:text-gray-300">{{ ech.dateEcheancePrevue.substring(0, 10) }}</span>
+                      <span class="font-medium text-gray-900 dark:text-white">{{ ech.mensualite | number:'1.0-0' }} FCFA</span>
                     </div>
                   }
                 </div>
@@ -136,25 +143,13 @@
           </div>
 
           <!-- Montant -->
+          @let echeance = prochaineEcheance();
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Montant à rembourser *</label>
-            <div class="relative">
-              <input
-                type="number"
-                [ngModel]="montantPaiement()"
-                (ngModelChange)="montantPaiement.set($event)"
-                min="0"
-                [max]="selectedLoan()?.resteARembourser ?? 0"
-                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 pr-16 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-              />
-              <span class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">FCFA</span>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Montant à rembourser</label>
+            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+              <p class="text-lg font-bold text-gray-900 dark:text-white">{{ echeance?.mensualite | number:'1.0-0' }} FCFA</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Échéance du {{ echeance?.dateEcheancePrevue?.substring(0, 10) }}</p>
             </div>
-            @if (montantSuggere() > 0) {
-              <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                Montant suggéré : <button (click)="montantPaiement.set(montantSuggere())" class="font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400">{{ montantSuggere() | number:'1.0-0' }} FCFA</button>
-                (prochaine échéance)
-              </p>
-            }
           </div>
 
           <!-- Mode de paiement -->
@@ -197,10 +192,18 @@
             </a>
             <button
               (click)="submit()"
-              [disabled]="!selectedLoan() || montantPaiement() <= 0 || montantPaiement() > (selectedLoan()?.resteARembourser ?? 0)"
-              class="rounded-xl bg-green-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 truncate"
+              [disabled]="!selectedLoan() || paiementEnCours()"
+              class="inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 truncate"
             >
-              Payer {{ montantPaiement() | number:'1.0-0' }} FCFA
+              @if (paiementEnCours()) {
+                <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+                </svg>
+                Paiement...
+              } @else {
+                Payer {{ prochaineEcheance()?.mensualite | number:'1.0-0' }} FCFA
+              }
             </button>
           </div>
         }

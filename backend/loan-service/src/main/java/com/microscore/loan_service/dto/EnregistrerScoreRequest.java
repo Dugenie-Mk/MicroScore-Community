@@ -18,6 +18,8 @@ public class EnregistrerScoreRequest {
     @NotNull(message = "L'identifiant du client est obligatoire")
     private Long idClient;
 
+    private String motif;
+
     @NotNull(message = "Le score total est obligatoire")
     private Double scoreTotal;
 

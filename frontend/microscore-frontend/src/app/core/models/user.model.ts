@@ -2,17 +2,33 @@ export interface User {
   id: number;
   fullName: string;
   email: string;
-  // Champs additionnels requis pour la gestion et le filtrage backend
   telephone?: string;
   statut?: 'ACTIF' | 'BLOQUE' | 'EN_ATTENTE';
   role?: 'CLIENT' | 'GESTIONNAIRE' | 'ADMIN';
+  dateNaissance?: string;
+  situationMatrimoniale?: string;
+  niveauEducation?: string;
+  personnesACharge?: number;
+  profession?: string;
+  secteurActivite?: string;
+  dateCreation?: string;
+  derniereConnexion?: string;
+  matricule?: string;
+  dateEmbauche?: string;
+  service?: string;
+  permissions?: string[];
+  lieuNaissance?: string;
+  cni?: string;
+  sexe?: string;
+  nombreEnfants?: number;
+  revenu?: number;
+  boitePostale?: string;
 }
 
 export interface UserRequest {
   fullName: string;
   email: string;
-  password: string;
-  // Permet d'envoyer le rôle choisi lors de la création d'un utilisateur
+  motDePasse: string;
   role?: 'CLIENT' | 'GESTIONNAIRE' | 'ADMIN';
   telephone?: string;
 }

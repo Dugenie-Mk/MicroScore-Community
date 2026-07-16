@@ -1,4 +1,9 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
+import { UserService } from './user.service';
 
 export interface LoanRequestItem {
   id: number;
@@ -12,26 +17,88 @@ export interface LoanRequestItem {
   statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE';
 }
 
+export interface PretApiResponse {
+  idPret: number;
+  idClient: number;
+  motif: string;
+  montant: number;
+  scoreTotal: number;
+  dureeRemboursementMois: number;
+  statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE';
+  dateEnregistrement: string;
+  dateDecision?: string;
+}
+
+export interface CreerPretPayload {
+  idClient: number;
+  motif: string;
+  montant: number;
+  dureeRemboursementMois: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class LoanRequestService {
-  readonly loanRequests = signal<LoanRequestItem[]>([
-    { id: 1, clientId: 1, clientNom: 'Prunelle T.', motif: 'Commerce', montant: 350000, score: 72, date: '20/05/2026', duree: '4 mois', statut: 'EN_ATTENTE' },
-    { id: 2, clientId: 2, clientNom: 'Jules M.', motif: 'Achat Matériel', montant: 500000, score: 85, date: '10/01/2026', duree: '6 mois', statut: 'APPROUVE' },
-    { id: 3, clientId: 5, clientNom: 'Paul T.', motif: 'Rénovation Habitat', montant: 200000, score: 45, date: '05/04/2026', duree: '3 mois', statut: 'REJETE' },
-    { id: 4, clientId: 1, clientNom: 'Prunelle T.', motif: 'Équipement Agricole', montant: 450000, score: 68, date: '25/03/2026', duree: '5 mois', statut: 'EN_ATTENTE' },
-    { id: 5, clientId: 2, clientNom: 'Jules M.', motif: 'Frais Scolaires', montant: 300000, score: 78, date: '15/02/2026', duree: '3 mois', statut: 'APPROUVE' },
-    { id: 6, clientId: 6, clientNom: 'Marie K.', motif: 'Santé', montant: 150000, score: 55, date: '01/06/2026', duree: '2 mois', statut: 'EN_ATTENTE' },
-    { id: 7, clientId: 5, clientNom: 'Paul T.', motif: 'Véhicule', montant: 800000, score: 42, date: '12/03/2026', duree: '12 mois', statut: 'REJETE' },
-    { id: 8, clientId: 6, clientNom: 'Marie K.', motif: 'Formation', montant: 100000, score: 60, date: '20/06/2026', duree: '2 mois', statut: 'EN_ATTENTE' },
-  ]);
+  private readonly http = inject(HttpClient);
+  private readonly userService = inject(UserService);
+  private readonly apiUrl = `${environment.apiUrl}/api/prets`;
 
-  updateStatus(id: number, newStatus: 'APPROUVE' | 'REJETE'): void {
-    this.loanRequests.update((items) =>
-      items.map((r) => (r.id === id ? { ...r, statut: newStatus } : r))
-    );
+  readonly loanRequests = signal<LoanRequestItem[]>([]);
+
+  constructor() {
+    this.loadAll();
   }
 
-  getByClientId(clientId: number): LoanRequestItem[] {
-    return this.loanRequests().filter((r) => r.clientId === clientId);
+  private mapPret(p: PretApiResponse): LoanRequestItem {
+    return {
+      id: p.idPret,
+      clientId: p.idClient,
+      clientNom: '',
+      motif: p.motif || '',
+      montant: p.montant,
+      score: p.scoreTotal,
+      date: p.dateEnregistrement ? p.dateEnregistrement.substring(0, 10) : '',
+      duree: p.dureeRemboursementMois + ' mois',
+      statut: p.statut,
+    };
+  }
+
+  private loadAll(): void {
+    this.http.get<PretApiResponse[]>(this.apiUrl).subscribe({
+      next: (data) => {
+        const items = data.map((p) => this.mapPret(p));
+        this.loanRequests.set(items);
+        for (const item of items) {
+          if (item.clientId > 0) {
+            this.userService.getById(item.clientId).subscribe({
+              next: (user) => {
+                this.loanRequests.update((list) =>
+                  list.map((i) => (i.id === item.id ? { ...i, clientNom: user.fullName } : i))
+                );
+              },
+            });
+          }
+        }
+      },
+      error: () => {},
+    });
+  }
+
+  createLoan(payload: CreerPretPayload): Observable<PretApiResponse> {
+    return this.http.post<PretApiResponse>(this.apiUrl, payload);
+  }
+
+  updateStatus(id: number, newStatus: 'APPROUVE' | 'REJETE'): void {
+    this.http.patch<PretApiResponse>(`${this.apiUrl}/${id}/decision`, { statut: newStatus }).subscribe({
+      next: () => this.loadAll(),
+      error: () => {},
+    });
+  }
+
+  getByClientId(clientId: number): Observable<PretApiResponse[]> {
+    return this.http.get<PretApiResponse[]>(`${this.apiUrl}/client/${clientId}`);
+  }
+
+  getAllPrets(): Observable<PretApiResponse[]> {
+    return this.http.get<PretApiResponse[]>(this.apiUrl);
   }
 }

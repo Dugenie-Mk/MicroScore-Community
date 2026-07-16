@@ -73,7 +73,7 @@
         type="text"
         placeholder="Rechercher un utilisateur…"
         [ngModel]="searchQuery()"
-        (ngModelChange)="searchQuery.set($event); currentPage.set(1)"
+        (ngModelChange)="searchQuery.set($event)"
         class="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition-all duration-200 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500 dark:focus:border-brand-400"
       />
     </div>
@@ -113,7 +113,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-          @for (user of paginatedUsers(); track user.id) {
+          @for (user of filteredUsers(); track user.id) {
             <tr class="group transition-colors duration-150 hover:bg-gray-50/80 dark:hover:bg-gray-800/40">
               <!-- User info -->
               <td class="px-4 py-4 sm:px-6">
@@ -156,7 +156,7 @@
 
               <!-- Role -->
               <td class="px-4 py-4 sm:px-6">
-                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getRoleBadgeClass(user.role) }}">
+                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getRoleBadgeClass(user.role ?? '') }}">
                   @switch (user.role) {
                     @case ('CLIENT') { Client }
                     @case ('GESTIONNAIRE') { Gestionnaire }
@@ -167,7 +167,7 @@
 
               <!-- Status -->
               <td class="px-4 py-4 sm:px-6">
-                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getStatusBadgeClass(user.statut) }}">
+                <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getStatusBadgeClass(user.statut ?? '') }}">
                   <span class="h-1.5 w-1.5 rounded-full"
                     [class.bg-green-500]="user.statut === 'ACTIF'"
                     [class.bg-red-500]="user.statut === 'BLOQUE'"
@@ -240,49 +240,6 @@
       </table>
     </div>
 
-    <!-- Pagination -->
-    @if (totalPages() > 1) {
-      <div class="flex items-center justify-between border-t border-gray-100 px-4 py-3 sm:px-6 dark:border-gray-800">
-        <p class="text-xs text-gray-500 dark:text-gray-400">
-          Page {{ currentPage() }} sur {{ totalPages() }}
-          <span class="hidden sm:inline"> · {{ filteredUsers().length }} résultat{{ filteredUsers().length > 1 ? 's' : '' }}</span>
-        </p>
-        <div class="flex items-center gap-1">
-          <button
-            (click)="goToPage(currentPage() - 1)"
-            [disabled]="currentPage() === 1"
-            class="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-gray-800"
-          >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-            </svg>
-          </button>
-          @for (p of [].constructor(totalPages()); track $index) {
-            <button
-              (click)="goToPage($index + 1)"
-              class="min-w-[2rem] rounded-lg px-2 py-1 text-xs font-semibold transition-all duration-200"
-              [class.bg-brand-600]="currentPage() === $index + 1"
-              [class.text-white]="currentPage() === $index + 1"
-              [class.text-gray-600]="currentPage() !== $index + 1"
-              [class.hover:bg-gray-100]="currentPage() !== $index + 1"
-              [class.dark:text-gray-300]="currentPage() !== $index + 1"
-              [class.dark:hover:bg-gray-800]="currentPage() !== $index + 1"
-            >
-              {{ $index + 1 }}
-            </button>
-          }
-          <button
-            (click)="goToPage(currentPage() + 1)"
-            [disabled]="currentPage() === totalPages()"
-            class="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-gray-800"
-          >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    }
   </div>
 
   <!-- Create User Modal -->

@@ -11,6 +11,7 @@ public class PretMapper {
         return PretResponse.builder()
                 .idPret(pret.getIdPret())
                 .idClient(pret.getIdClient())
+                .motif(pret.getMotif())
                 .scoreTotal(pret.getScoreTotal())
                 .montant(pret.getMontant())
                 .dureeRemboursementMois(pret.getDureeRemboursementMois())

@@ -1,5 +1,6 @@
 package com.microscore.loan_service.controller;
 
+import com.microscore.loan_service.dto.CreerPretRequest;
 import com.microscore.loan_service.dto.DeciderStatutRequest;
 import com.microscore.loan_service.dto.EnregistrerScoreRequest;
 import com.microscore.loan_service.dto.PretResponse;
@@ -20,11 +21,23 @@ public class PretController {
 
     private final PretService pretService;
 
+    @PostMapping
+    public ResponseEntity<PretResponse> creerPret(
+            @Valid @RequestBody CreerPretRequest request) {
+        PretResponse response = pretService.creerPret(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @PostMapping("/enregistrer-score")
     public ResponseEntity<PretResponse> enregistrerScore(
             @Valid @RequestBody EnregistrerScoreRequest request) {
         PretResponse response = pretService.enregistrerScore(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<PretResponse>> getAllPrets() {
+        return ResponseEntity.ok(pretService.getAllPrets());
     }
 
     @GetMapping("/{idPret}")

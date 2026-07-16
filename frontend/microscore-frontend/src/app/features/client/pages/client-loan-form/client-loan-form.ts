@@ -1,7 +1,11 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+
+import { AuthService } from '../../../../core/services/auth.service';
+import { LoanRequestService } from '../../../../core/services/loan-request.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 interface LoanForm {
   motif: string;
@@ -17,7 +21,13 @@ interface LoanForm {
   templateUrl: './client-loan-form.html',
 })
 export class ClientLoanForm {
-  protected submitted = signal(false);
+  private readonly auth = inject(AuthService);
+  private readonly loanService = inject(LoanRequestService);
+  private readonly toast = inject(ToastService);
+
+  protected readonly loading = signal(false);
+  protected readonly submitted = signal(false);
+  protected readonly error = signal('');
 
   protected readonly form = signal<LoanForm>({
     motif: '',
@@ -42,11 +52,39 @@ export class ClientLoanForm {
   protected submit(): void {
     const f = this.form();
     if (!f.motif.trim() || !f.montant || f.montant <= 0) return;
-    this.submitted.set(true);
+
+    const user = this.auth.currentUser();
+    if (!user) {
+      this.error.set('Vous devez être connecté pour effectuer cette action.');
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set('');
+
+    this.loanService.createLoan({
+      idClient: user.id,
+      motif: f.motif,
+      montant: f.montant,
+      dureeRemboursementMois: Number(f.duree),
+    }).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.toast.show('Demande de prêt soumise avec succès.', 'success');
+        this.submitted.set(true);
+      },
+      error: (err) => {
+        this.loading.set(false);
+        const msg = err.error?.message || err.message || 'Erreur lors de l\'envoi de la demande.';
+        this.error.set(msg);
+        this.toast.show(msg, 'error');
+      },
+    });
   }
 
   protected resetForm(): void {
     this.form.set({ motif: '', montant: null, duree: '6', description: '' });
     this.submitted.set(false);
+    this.error.set('');
   }
 }

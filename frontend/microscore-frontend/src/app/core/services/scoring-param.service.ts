@@ -28,7 +28,7 @@ export class ScoringParamService {
       ],
     },
     {
-      id: 2, nom: 'Capacité de remboursements', poids: 35,
+      id: 2, nom: 'Capacité de remboursement', poids: 35,
       details: [
         { id: 5, nom: 'Revenus mensuels' },
         { id: 6, nom: 'Charges mensuelles' },
@@ -37,7 +37,7 @@ export class ScoringParamService {
       ],
     },
     {
-      id: 3, nom: 'Historique de crédits', poids: 15,
+      id: 3, nom: 'Historique de crédit', poids: 15,
       details: [
         { id: 9, nom: 'Antécédents de crédit' },
         { id: 10, nom: 'Comportement de remboursement' },
@@ -45,7 +45,7 @@ export class ScoringParamService {
       ],
     },
     {
-      id: 4, nom: 'Activités économiques', poids: 15,
+      id: 4, nom: 'Activité économique', poids: 15,
       details: [
         { id: 12, nom: "Secteur d'activité" },
         { id: 13, nom: "Ancienneté de l'activité" },
@@ -102,7 +102,7 @@ export class ScoringParamService {
           : p
       )
     );
-    this.toast.show('Sous-critère mis à jour', 'info');
+    this.toast.show('Détail mis à jour', 'info');
   }
 
   deleteDetail(paramId: number, detailId: number): void {
@@ -115,7 +115,7 @@ export class ScoringParamService {
           : p
       )
     );
-    this.toast.show('Sous-critère « ' + (item?.nom ?? '') + ' » supprimé', 'warning');
+    this.toast.show('Détail « ' + (item?.nom ?? '') + ' » supprimé', 'warning');
   }
 
   addDetail(paramId: number, nom: string): void {
@@ -126,8 +126,14 @@ export class ScoringParamService {
           : p
       )
     );
-    this.toast.show('Sous-critère « ' + nom + ' » ajouté', 'success');
+    this.toast.show('Détail « ' + nom + ' » ajouté', 'success');
   }
 
-  get nextDetailIdVal(): number { return this.nextDetailId; }
+  savePoids(paramId: number, poids: number): void {
+    this.parametres.update((items) =>
+      items.map((p) => (p.id === paramId ? { ...p, poids } : p))
+    );
+    const item = this.parametres().find((p) => p.id === paramId);
+    this.toast.show('Poids du critère « ' + (item?.nom ?? '') + ' » modifié', 'info');
+  }
 }

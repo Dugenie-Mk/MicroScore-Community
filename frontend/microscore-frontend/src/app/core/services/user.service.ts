@@ -1,19 +1,33 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 import { User, UserRequest, ClientUser, AdminUser, GestionnaireUser } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = '/api/users';
+  private readonly apiUrl = `${environment.apiUrl}/api/users`;
 
   // ==========================================
   // 1. LE POINTEUR CENTRAL (SIGNALS)
   // ==========================================
   // Ce pointeur stockera en temps réel l'utilisateur connecté dans l'application
   currentUser = signal<User | null>(null);
+
+  /** Liste complète des utilisateurs (alimentée au démarrage) */
+  readonly users = signal<User[]>([]);
+
+  constructor() {
+    this.loadUsers();
+  }
+
+  private loadUsers(): void {
+    this.getAll().subscribe({
+      next: (data) => this.users.set(data),
+    });
+  }
 
   // ==========================================
   // 2. MÉTHODES EXISTANTES (CONSERVÉES)
@@ -23,7 +37,7 @@ export class UserService {
   }
 
   getById(id: number): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/${id}`);
+    return this.http.get<User>(`${this.apiUrl}/${id}?_t=${Date.now()}`);
   }
 
   create(payload: UserRequest): Observable<User> {
@@ -34,8 +48,18 @@ export class UserService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 
+  update(id: number, data: Partial<User>): Observable<User> {
+    return this.http.patch<User>(`${this.apiUrl}/${id}`, data);
+  }
+
   // ==========================================
-  // 3. NOUVELLES FONCTIONNALITÉS REQUISES
+  // 3. SIGNAL DE RAFRAÎCHISSEMENT
+  // ==========================================
+  /** Incrementé pour notifier les composants qu'un rechargement est nécessaire */
+  readonly refreshTrigger = signal(0);
+
+  // ==========================================
+  // 4. NOUVELLES FONCTIONNALITÉS REQUISES
   // ==========================================
 
   /**

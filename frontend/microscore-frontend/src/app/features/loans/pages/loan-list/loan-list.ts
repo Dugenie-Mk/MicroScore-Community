@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
 import { LoanRequestService } from '../../../../core/services/loan-request.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 type SortKey = 'client' | 'montant' | 'score' | 'date' | 'statut';
 
@@ -17,6 +18,7 @@ type SortKey = 'client' | 'montant' | 'score' | 'date' | 'statut';
 export class LoanList {
   private readonly auth = inject(AuthService);
   private readonly loanService = inject(LoanRequestService);
+  private readonly toast = inject(ToastService);
 
   protected readonly isAdmin = computed(() => this.auth.currentUser()?.role === 'ADMIN');
 
@@ -91,6 +93,10 @@ export class LoanList {
   }
 
   protected updateStatus(id: number, newStatus: 'APPROUVE' | 'REJETE'): void {
+    this.toast.show(
+      newStatus === 'APPROUVE' ? 'Prêt approuvé avec succès' : 'Prêt rejeté',
+      newStatus === 'APPROUVE' ? 'success' : 'warning'
+    );
     this.loanService.updateStatus(id, newStatus);
   }
 

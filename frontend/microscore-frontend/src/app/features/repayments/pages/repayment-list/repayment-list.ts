@@ -1,15 +1,12 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, signal, computed, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
-interface Echeance {
-  id: number;
-  dateEcheance: string;
-  montant: number;
-  paye: boolean;
-  datePaiement?: string;
-}
+import { LoanRequestService, PretApiResponse } from '../../../../core/services/loan-request.service';
+import { RepaymentService, EcheanceDto } from '../../../../core/services/repayment.service';
+import { ToastService } from '../../../../core/services/toast.service';
+import { UserService } from '../../../../core/services/user.service';
 
 interface Repayment {
   id: number;
@@ -23,7 +20,7 @@ interface Repayment {
   resteARembourser: number;
   dateProchaineEcheance: string;
   statut: 'SOLDÉ' | 'EN_COURS' | 'EN_RETARD';
-  echeances: Echeance[];
+  echeances: EcheanceDto[];
 }
 
 type SortKey = 'client' | 'montant' | 'reste' | 'echeance' | 'statut';
@@ -35,82 +32,93 @@ type SortKey = 'client' | 'montant' | 'reste' | 'echeance' | 'statut';
   templateUrl: './repayment-list.html',
 })
 export class RepaymentList {
+  private readonly loanService = inject(LoanRequestService);
+  private readonly repaymentService = inject(RepaymentService);
+  private readonly toast = inject(ToastService);
+  private readonly userService = inject(UserService);
+
   protected readonly searchQuery = signal('');
   protected readonly statutFilter = signal<string>('TOUS');
   protected readonly expandedId = signal<number | null>(null);
   protected readonly sortKey = signal<SortKey>('statut');
   protected readonly sortAsc = signal(true);
+  protected readonly loading = signal(true);
 
-  protected readonly repayments = signal<Repayment[]>([
-    {
-      id: 1, clientId: 2, clientNom: 'Jules M.', loanId: 1,
-      motif: 'Frais Scolaires', montantEmprunte: 300000,
-      totalARembourser: 315000, montantRembourse: 100000, resteARembourser: 215000,
-      dateProchaineEcheance: '15/07/2026', statut: 'EN_COURS',
-      echeances: [
-        { id: 1, dateEcheance: '15/05/2026', montant: 52500, paye: true, datePaiement: '15/05/2026' },
-        { id: 2, dateEcheance: '15/06/2026', montant: 52500, paye: true, datePaiement: '16/06/2026' },
-        { id: 3, dateEcheance: '15/07/2026', montant: 52500, paye: false },
-        { id: 4, dateEcheance: '15/08/2026', montant: 52500, paye: false },
-        { id: 5, dateEcheance: '15/09/2026', montant: 52500, paye: false },
-        { id: 6, dateEcheance: '15/10/2026', montant: 52500, paye: false },
-      ],
-    },
-    {
-      id: 2, clientId: 2, clientNom: 'Jules M.', loanId: 2,
-      motif: 'Achat Matériel', montantEmprunte: 500000,
-      totalARembourser: 525000, montantRembourse: 525000, resteARembourser: 0,
-      dateProchaineEcheance: '-', statut: 'SOLDÉ',
-      echeances: [
-        { id: 7, dateEcheance: '10/02/2026', montant: 87500, paye: true, datePaiement: '10/02/2026' },
-        { id: 8, dateEcheance: '10/03/2026', montant: 87500, paye: true, datePaiement: '10/03/2026' },
-        { id: 9, dateEcheance: '10/04/2026', montant: 87500, paye: true, datePaiement: '08/04/2026' },
-        { id: 10, dateEcheance: '10/05/2026', montant: 87500, paye: true, datePaiement: '11/05/2026' },
-        { id: 11, dateEcheance: '10/06/2026', montant: 87500, paye: true, datePaiement: '10/06/2026' },
-        { id: 12, dateEcheance: '10/07/2026', montant: 87500, paye: true, datePaiement: '09/07/2026' },
-      ],
-    },
-    {
-      id: 3, clientId: 1, clientNom: 'Prunelle T.', loanId: 3,
-      motif: 'Commerce', montantEmprunte: 350000,
-      totalARembourser: 367500, montantRembourse: 0, resteARembourser: 367500,
-      dateProchaineEcheance: '20/08/2026', statut: 'EN_COURS',
-      echeances: [
-        { id: 13, dateEcheance: '20/08/2026', montant: 91875, paye: false },
-        { id: 14, dateEcheance: '20/09/2026', montant: 91875, paye: false },
-        { id: 15, dateEcheance: '20/10/2026', montant: 91875, paye: false },
-        { id: 16, dateEcheance: '20/11/2026', montant: 91875, paye: false },
-      ],
-    },
-    {
-      id: 4, clientId: 5, clientNom: 'Paul T.', loanId: 4,
-      motif: 'Rénovation Habitat', montantEmprunte: 200000,
-      totalARembourser: 210000, montantRembourse: 50000, resteARembourser: 160000,
-      dateProchaineEcheance: '05/07/2026', statut: 'EN_RETARD',
-      echeances: [
-        { id: 17, dateEcheance: '05/05/2026', montant: 35000, paye: true, datePaiement: '06/05/2026' },
-        { id: 18, dateEcheance: '05/06/2026', montant: 35000, paye: true, datePaiement: '07/06/2026' },
-        { id: 19, dateEcheance: '05/07/2026', montant: 35000, paye: false },
-        { id: 20, dateEcheance: '05/08/2026', montant: 35000, paye: false },
-        { id: 21, dateEcheance: '05/09/2026', montant: 35000, paye: false },
-        { id: 22, dateEcheance: '05/10/2026', montant: 35000, paye: false },
-      ],
-    },
-    {
-      id: 5, clientId: 1, clientNom: 'Prunelle T.', loanId: 5,
-      motif: 'Équipement Agricole', montantEmprunte: 450000,
-      totalARembourser: 472500, montantRembourse: 250000, resteARembourser: 222500,
-      dateProchaineEcheance: '25/07/2026', statut: 'EN_COURS',
-      echeances: [
-        { id: 23, dateEcheance: '25/04/2026', montant: 78750, paye: true, datePaiement: '25/04/2026' },
-        { id: 24, dateEcheance: '25/05/2026', montant: 78750, paye: true, datePaiement: '26/05/2026' },
-        { id: 25, dateEcheance: '25/06/2026', montant: 78750, paye: true, datePaiement: '24/06/2026' },
-        { id: 26, dateEcheance: '25/07/2026', montant: 78750, paye: false },
-        { id: 27, dateEcheance: '25/08/2026', montant: 78750, paye: false },
-        { id: 28, dateEcheance: '25/09/2026', montant: 78750, paye: false },
-      ],
-    },
-  ]);
+  protected readonly repayments = signal<Repayment[]>([]);
+
+  constructor() {
+    this.loadRepayments();
+    effect(() => {
+      this.repaymentService.refreshTrigger();
+      this.loadRepayments();
+    });
+  }
+
+  private loadRepayments(): void {
+    this.loading.set(true);
+
+    this.loanService.getAllPrets().subscribe({
+      next: (prets) => {
+        const approuves = prets.filter((p) => p.statut === 'APPROUVE');
+        if (approuves.length === 0) {
+          this.loading.set(false);
+          return;
+        }
+
+        let completed = 0;
+        for (const pret of approuves) {
+          this.repaymentService.getAmortissementByPret(pret.idPret).subscribe({
+            next: (grille) => {
+              const payees = grille.echeances.filter((e) => e.statut === 'PAYE');
+              const totalRembourse = payees.reduce((s, e) => s + e.mensualite, 0);
+              const allPayees = grille.echeances.every((e) => e.statut === 'PAYE');
+              const enRetard = grille.echeances.some((e) => e.statut === 'EN_RETARD');
+              const prochaine = grille.echeances.find((e) => e.statut === 'EN_ATTENTE' || e.statut === 'EN_RETARD');
+
+              let statutRemb: 'SOLDÉ' | 'EN_COURS' | 'EN_RETARD' = 'EN_COURS';
+              if (allPayees) statutRemb = 'SOLDÉ';
+              else if (enRetard) statutRemb = 'EN_RETARD';
+
+              // Get client name
+              this.userService.getById(pret.idClient).subscribe({
+                next: (user) => {
+                  this.repayments.update((items) => [
+                    ...items,
+                    {
+                      id: pret.idPret,
+                      clientId: pret.idClient,
+                      clientNom: user.fullName,
+                      loanId: pret.idPret,
+                      motif: pret.motif || '',
+                      montantEmprunte: grille.montantEmprunte,
+                      totalARembourser: grille.coutTotalCredit,
+                      montantRembourse: totalRembourse,
+                      resteARembourser: grille.coutTotalCredit - totalRembourse,
+                      dateProchaineEcheance: prochaine ? this.formatDate(prochaine.dateEcheancePrevue) : '-',
+                      statut: statutRemb,
+                      echeances: grille.echeances,
+                    },
+                  ]);
+                },
+                error: () => {},
+              });
+            },
+            error: () => {},
+            complete: () => {
+              completed++;
+              if (completed === approuves.length) this.loading.set(false);
+            },
+          });
+        }
+      },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  private formatDate(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleDateString('fr-FR');
+  }
 
   protected readonly filtered = computed(() => {
     const q = this.searchQuery().toLowerCase();
@@ -203,16 +211,16 @@ export class RepaymentList {
     }
   }
 
-  protected getEcheancesPayees(echeances: Echeance[]): number {
-    return echeances.filter((e) => e.paye).length;
+  protected getEcheancesPayees(echeances: EcheanceDto[]): number {
+    return echeances.filter((e) => e.statut === 'PAYE').length;
   }
 
-  protected getEcheancesRestantes(echeances: Echeance[]): number {
-    return echeances.filter((e) => !e.paye).length;
+  protected getEcheancesRestantes(echeances: EcheanceDto[]): number {
+    return echeances.filter((e) => e.statut !== 'PAYE').length;
   }
 
-  protected getMontantMensuel(echeances: Echeance[]): number {
-    const payees = echeances.filter((e) => e.paye);
-    return payees.length > 0 ? Math.round(payees[0].montant) : (echeances[0]?.montant ?? 0);
+  protected getMontantMensuel(echeances: EcheanceDto[]): number {
+    const payees = echeances.filter((e) => e.statut === 'PAYE');
+    return payees.length > 0 ? Math.round(payees[0].mensualite) : (echeances[0]?.mensualite ?? 0);
   }
 }
