@@ -22,15 +22,32 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
+
+    http
             .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .sessionManagement(session ->
+                    session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/users/**").permitAll()
-                .anyRequest().authenticated()
+
+                    // Swagger
+                    .requestMatchers(
+                            "/swagger-ui/**",
+                            "/swagger-ui.html",
+                            "/v3/api-docs/**",
+                            "/v3/api-docs",
+                            "/webjars/**"
+                    ).permitAll()
+
+                    // Authentification
+                    .requestMatchers("/api/auth/**").permitAll()
+
+                    // API utilisateurs
+                    .requestMatchers("/api/users/**").permitAll()
+
+                    // Le reste nécessite une authentification
+                    .anyRequest().authenticated()
             );
-        return http.build();
-    }
+
+    return http.build();
+} 
 }
