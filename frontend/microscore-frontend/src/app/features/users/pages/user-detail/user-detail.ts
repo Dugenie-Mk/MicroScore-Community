@@ -1,13 +1,16 @@
-import { Component, signal, computed, inject, OnInit, effect } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 
 import { UserService } from '../../../../core/services/user.service';
 import { LoanRequestService, PretApiResponse } from '../../../../core/services/loan-request.service';
 import { RepaymentService, EcheanceDto, GrilleAmortissementResponse } from '../../../../core/services/repayment.service';
-import { ScoringParamService, Parametre } from '../../../../core/services/scoring-param.service';
+import { ScoringParamService } from '../../../../core/services/scoring-param.service';
 import { ScoringService } from '../../../../core/services/scoring.service';
+import { ScoreResultService, ScoreDetailResponse } from '../../../../core/services/score-result.service';
+import { ToastService } from '../../../../core/services/toast.service';
 import { User } from '../../../../core/models/user.model';
 
 type ActiveTab = 'infos' | 'scoring' | 'loans' | 'repayments';
@@ -44,13 +47,24 @@ interface RepaymentDisplay {
   imports: [CommonModule, RouterLink, FormsModule],
   templateUrl: './user-detail.html',
 })
-export class UserDetailComponent implements OnInit {
+export class UserDetailComponent implements OnInit, OnDestroy {
+  protected readonly Math = Math;
   private route = inject(ActivatedRoute);
   private readonly userService = inject(UserService);
   private readonly loanService = inject(LoanRequestService);
   private readonly repaymentService = inject(RepaymentService);
   private readonly scoringService = inject(ScoringService);
   protected readonly scoringParamService = inject(ScoringParamService);
+  private readonly scoreResultService = inject(ScoreResultService);
+  private readonly toast = inject(ToastService);
+  private subscription: Subscription | null = null;
+
+  protected readonly scoreDetail = signal<ScoreDetailResponse | null>(null);
+
+  protected readonly palette = [
+    'bg-violet-500', 'bg-emerald-500', 'bg-amber-500', 'bg-blue-500',
+    'bg-rose-500', 'bg-cyan-500', 'bg-orange-500',
+  ];
 
   activeTab = signal<ActiveTab>('infos');
   user = signal<User | null>(null);
@@ -58,6 +72,26 @@ export class UserDetailComponent implements OnInit {
 
   loans = signal<LoanDisplay[]>([]);
   repayments = signal<RepaymentDisplay[]>([]);
+
+  loanPage = signal(0);
+  loanPageSize = 5;
+  get pagedLoans(): LoanDisplay[] {
+    const start = this.loanPage() * this.loanPageSize;
+    return this.loans().slice(start, start + this.loanPageSize);
+  }
+  get loanTotalPages(): number {
+    return Math.max(1, Math.ceil(this.loans().length / this.loanPageSize));
+  }
+  get loanPages(): number[] {
+    const total = this.loanTotalPages;
+    const current = Math.min(this.loanPage(), total - 1);
+    if (this.loanPage() !== current) this.loanPage.set(current);
+    const maxVisible = 5;
+    if (total <= maxVisible) return Array.from({ length: total }, (_, i) => i);
+    const start = Math.max(0, current - Math.floor(maxVisible / 2));
+    const end = Math.min(total, start + maxVisible);
+    return Array.from({ length: end - start }, (_, i) => start + i);
+  }
 
   clientScore = computed(() => {
     const scored = this.loans().filter((l) => l.score > 0);
@@ -79,18 +113,19 @@ export class UserDetailComponent implements OnInit {
   ];
 
   ngOnInit() {
-    effect(() => {
-      this.repaymentService.refreshTrigger();
-      this.userService.refreshTrigger();
-      const currentId = this.route.snapshot.paramMap.get('id');
-      if (currentId) this.loadUserData(Number(currentId));
-    });
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) this.loadUserData(Number(id));
+  }
+
+  ngOnDestroy() {
+    this.subscription?.unsubscribe();
   }
 
   private loadUserData(id: number) {
     this.loading.set(true);
 
-    this.userService.getById(id).subscribe({
+    this.subscription?.unsubscribe();
+    this.subscription = this.userService.getById(id).subscribe({
       next: (user) => {
         this.user.set(user);
         if (user.role === 'CLIENT') {
@@ -101,11 +136,15 @@ export class UserDetailComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
+        this.toast.show('Erreur lors du chargement de l\'utilisateur.', 'error');
       },
     });
   }
 
   private loadClientData(clientId: number) {
+    this.scoreResultService.loadLatestDetailByClientId(clientId).then((detail) => {
+      this.scoreDetail.set(detail);
+    });
     this.loanService.getByClientId(clientId).subscribe({
       next: (prets) => {
         const items: LoanDisplay[] = prets.map((p) => ({
@@ -180,6 +219,7 @@ export class UserDetailComponent implements OnInit {
       },
       error: () => {
         this.loading.set(false);
+        this.toast.show('Erreur lors du chargement des données du client.', 'error');
       },
     });
   }
@@ -204,6 +244,13 @@ export class UserDetailComponent implements OnInit {
       case 'EN_ATTENTE': return 'bg-amber-50/80 text-amber-700 ring-amber-600/20';
       default: return 'bg-gray-50 text-gray-700 ring-gray-600/20';
     }
+  }
+
+  protected riskLabel(total: number): string {
+    if (total >= 80) return 'Faible risque';
+    if (total >= 60) return 'Risque modéré';
+    if (total >= 40) return 'Risque élevé';
+    return 'Très risqué';
   }
 
   protected getScoreColor(s: number): string {

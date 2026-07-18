@@ -13,12 +13,14 @@ export interface User {
   secteurActivite?: string;
   dateCreation?: string;
   derniereConnexion?: string;
+  cni?: string;
   matricule?: string;
+  mustChangePassword?: boolean;
+  motifBlocage?: string;
   dateEmbauche?: string;
   service?: string;
   permissions?: string[];
   lieuNaissance?: string;
-  cni?: string;
   sexe?: string;
   nombreEnfants?: number;
   revenu?: number;
@@ -31,6 +33,18 @@ export interface UserRequest {
   motDePasse: string;
   role?: 'CLIENT' | 'GESTIONNAIRE' | 'ADMIN';
   telephone?: string;
+  cni?: string;
+  matricule?: string;
+  mustChangePassword?: boolean;
+  dateNaissance?: string;
+  lieuNaissance?: string;
+  situationMatrimoniale?: string;
+  niveauEducation?: string;
+  personnesACharge?: number;
+  sexe?: string;
+  revenu?: number;
+  profession?: string;
+  secteurActivite?: string;
 }
 
 // ==========================================

@@ -63,6 +63,11 @@
                 ></span>
                 {{ u.statut === 'EN_ATTENTE' ? 'En attente' : u.statut }}
               </span>
+              @if (u.statut === 'BLOQUE' && u.motifBlocage) {
+                <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/20 dark:text-red-400">
+                  Motif : {{ u.motifBlocage }}
+                </span>
+              }
             </div>
           </div>
           <!-- Quick actions -->
@@ -97,6 +102,17 @@
               </svg>
               <span class="text-gray-700 dark:text-gray-300">{{ u.telephone }}</span>
             </div>
+            @if (u.statut === 'BLOQUE' && u.motifBlocage) {
+              <div class="flex items-start gap-3 text-sm">
+                <svg class="h-4 w-4 mt-0.5 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+                <div>
+                  <p class="text-[10px] uppercase tracking-wider text-red-400">Motif de blocage</p>
+                  <p class="mt-0.5 font-medium text-red-700 dark:text-red-400">{{ u.motifBlocage }}</p>
+                </div>
+              </div>
+            }
           </div>
         </div>
 
@@ -281,7 +297,7 @@
                       <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
                     </svg>
                   </span>
-                  <h3 class="text-base font-bold text-gray-900 dark:text-white">Paramètres de scoring</h3>
+                  <h3 class="text-base font-bold text-gray-900 dark:text-white">Scoring client</h3>
                 </div>
 
                 <!-- Score client -->
@@ -316,43 +332,69 @@
                       Risque {{ risk.label }}
                     </div>
                     <div class="col-span-2 text-xs text-gray-400 dark:text-gray-500 pt-1">
-                      Score moyen calculé à partir des prêts scorés de ce client
+                      Score calculé sur les prêts de ce client
                     </div>
                   </div>
                 </div>
 
-                <!-- Grille des critères depuis BD -->
-                <div class="space-y-3">
-                  @for (item of scoringParamService.parametres(); track item.id) {
-                    <div class="group rounded-xl border border-gray-100 bg-gray-50/50 p-4 transition-all hover:border-gray-200 hover:shadow-sm dark:border-gray-800 dark:bg-gray-800/20 dark:hover:border-gray-700">
-                      <div class="flex items-start justify-between mb-3">
-                        <div class="flex-1">
-                          <h4 class="text-sm font-bold text-gray-900 dark:text-white">{{ item.nom }}</h4>
-                          <div class="mt-1 flex flex-wrap gap-1">
-                            @for (det of item.details; track det.id) {
-                              <span class="inline-flex items-center rounded-md bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-700">
-                                {{ det.nom }}
-                              </span>
-                            }
-                          </div>
-                        </div>
-                        <div class="flex items-center gap-3 shrink-0 ml-3">
-                          <div class="text-right">
-                            <p class="text-[10px] text-gray-400 dark:text-gray-500">Poids</p>
-                            <p class="text-sm font-bold text-gray-900 dark:text-white">{{ item.poids }}%</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                        <div class="h-full rounded-full bg-brand-500 transition-all duration-500"
-                          [style.width.%]="item.poids"
-                        ></div>
-                      </div>
+                <!-- Détail par critère du dernier score -->
+                @if (scoreDetail(); as detail) {
+                  <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Détail par bloc</span>
+                      <span class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Total <span class="font-bold {{ getScoreColor(detail.scoreTotal) }}">{{ detail.scoreTotal }}</span> / 100
+                        — <span class="text-xs">{{ riskLabel(detail.scoreTotal) }}</span>
+                      </span>
                     </div>
-                  } @empty {
-                    <p class="text-sm text-gray-400 text-center py-6">Aucun paramètre de scoring défini. Configurez-les dans l'onglet Scoring.</p>
-                  }
-                </div>
+                    @for (bloc of detail.blocs; track bloc.bloc; let bIdx = $index) {
+                      <div class="overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800">
+                        <div class="flex items-center justify-between bg-gray-50 px-4 py-2.5 dark:bg-gray-800/50">
+                          <div class="flex items-center gap-2">
+                            <span class="h-2.5 w-2.5 rounded-full {{ palette[bIdx % palette.length] }}"></span>
+                            <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ bloc.label }}</span>
+                          </div>
+                          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                            {{ bloc.scoreBloc }} / {{ bloc.totalBloc }}
+                          </span>
+                        </div>
+                        <div class="divide-y divide-gray-50 dark:divide-gray-800/50">
+                          @for (c of bloc.criteres; track c.nom) {
+                            <div class="flex items-center justify-between px-4 py-2.5">
+                              <span class="text-sm text-gray-700 dark:text-gray-300">{{ c.nom }}</span>
+                              <div class="flex items-center gap-3">
+                                <span class="text-xs text-gray-400 dark:text-gray-500">poids {{ c.poids }}</span>
+                                <div class="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                                  <div class="h-full rounded-full {{ palette[bIdx % palette.length] }}"
+                                    [style.width.%]="c.poids > 0 ? (c.points / c.poids) * 100 : 0"></div>
+                                </div>
+                                <span class="w-12 text-right text-sm font-semibold tabular-nums"
+                                  [class.text-emerald-600]="c.points >= c.poids * 0.8"
+                                  [class.text-amber-600]="c.points >= c.poids * 0.5 && c.points < c.poids * 0.8"
+                                  [class.text-red-600]="c.points < c.poids * 0.5"
+                                  [class.dark:text-emerald-400]="c.points >= c.poids * 0.8"
+                                  [class.dark:text-amber-400]="c.points >= c.poids * 0.5 && c.points < c.poids * 0.8"
+                                  [class.dark:text-red-400]="c.points < c.poids * 0.5">
+                                  {{ c.points }}
+                                </span>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <div class="flex flex-col items-center py-10">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+                      <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                      </svg>
+                    </div>
+                    <p class="mt-3 text-sm font-medium text-gray-900 dark:text-white">Aucun score détaillé</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Le score détaillé apparaîtra après le calcul automatique.</p>
+                  </div>
+                }
               </div>
             }
 
@@ -379,7 +421,7 @@
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                      @for (loan of loans(); track loan.idPret) {
+                      @for (loan of pagedLoans; track loan.idPret) {
                         <tr class="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
                           <td class="px-4 py-3.5 text-gray-700 dark:text-gray-300">{{ loan.date }}</td>
                           <td class="px-4 py-3.5 font-medium text-gray-900 dark:text-white">{{ loan.motif }}</td>
@@ -404,6 +446,42 @@
                     </tbody>
                   </table>
                 </div>
+                <!-- Pagination prêts -->
+                @if (loans().length > loanPageSize) {
+                  <div class="mt-3 flex items-center justify-between">
+                    <p class="text-xs text-gray-400">
+                      {{ loanPage() * loanPageSize + 1 }}–{{ Math.min((loanPage() + 1) * loanPageSize, loans().length) }} / {{ loans().length }}
+                    </p>
+                    <div class="flex items-center gap-1">
+                      <button (click)="loanPage.set(0)" [disabled]="loanPage() === 0"
+                        class="rounded px-2 py-1 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed dark:hover:bg-gray-800">
+                        ««
+                      </button>
+                      <button (click)="loanPage.set(loanPage() - 1)" [disabled]="loanPage() === 0"
+                        class="rounded px-2 py-1 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed dark:hover:bg-gray-800">
+                        «
+                      </button>
+                      @for (p of loanPages; track p) {
+                        <button (click)="loanPage.set(p)"
+                          class="rounded px-2.5 py-1 text-xs font-medium transition-colors"
+                          [class.bg-brand-600]="p === loanPage()"
+                          [class.text-white]="p === loanPage()"
+                          [class.text-gray-500]="p !== loanPage()"
+                          [class.hover:bg-gray-100]="p !== loanPage()"
+                          [class.dark:hover:bg-gray-800]="p !== loanPage()"
+                        >{{ p + 1 }}</button>
+                      }
+                      <button (click)="loanPage.set(loanPage() + 1)" [disabled]="loanPage() >= loanTotalPages - 1"
+                        class="rounded px-2 py-1 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed dark:hover:bg-gray-800">
+                        »
+                      </button>
+                      <button (click)="loanPage.set(loanTotalPages - 1)" [disabled]="loanPage() >= loanTotalPages - 1"
+                        class="rounded px-2 py-1 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed dark:hover:bg-gray-800">
+                        »»
+                      </button>
+                    </div>
+                  </div>
+                }
               </div>
             }
 

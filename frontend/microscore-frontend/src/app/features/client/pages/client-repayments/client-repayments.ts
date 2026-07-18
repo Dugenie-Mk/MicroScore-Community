@@ -1,7 +1,9 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+
+import { ConfirmModalComponent } from '../../../../shared/components/confirm-modal/confirm-modal';
 
 import { AuthService } from '../../../../core/services/auth.service';
 import { LoanRequestService } from '../../../../core/services/loan-request.service';
@@ -16,6 +18,7 @@ interface LoanRepayment {
   montantRembourse: number;
   resteARembourser: number;
   dateProchaineEcheance: string;
+  dateEnregistrement: string;
   statut: 'SOLDÉ' | 'EN_COURS' | 'EN_RETARD';
   echeances: EcheanceDto[];
 }
@@ -23,7 +26,7 @@ interface LoanRepayment {
 @Component({
   selector: 'app-client-repayments',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, ConfirmModalComponent],
   templateUrl: './client-repayments.html',
 })
 export class ClientRepayments {
@@ -34,6 +37,34 @@ export class ClientRepayments {
 
   protected readonly loans = signal<LoanRepayment[]>([]);
   protected readonly loading = signal(true);
+
+  protected readonly statutFilter = signal<'TOUS' | 'SOLDÉ' | 'EN_COURS' | 'EN_RETARD'>('TOUS');
+  protected readonly dateDebut = signal('');
+  protected readonly dateFin = signal('');
+
+  protected readonly statutOptions = ['TOUS', 'SOLDÉ', 'EN_COURS', 'EN_RETARD'] as const;
+
+  protected readonly filteredLoans = computed(() => {
+    let list = this.loans();
+
+    const sf = this.statutFilter();
+    if (sf !== 'TOUS') {
+      list = list.filter((l) => l.statut === sf);
+    }
+
+    const dd = this.dateDebut();
+    const df = this.dateFin();
+    if (dd) {
+      const debut = new Date(dd).getTime();
+      list = list.filter((l) => new Date(l.dateProchaineEcheance).getTime() >= debut);
+    }
+    if (df) {
+      const fin = new Date(df).getTime();
+      list = list.filter((l) => new Date(l.dateProchaineEcheance).getTime() <= fin);
+    }
+
+    return list;
+  });
 
   protected readonly stats = computed(() => {
     const all = this.loans();
@@ -61,6 +92,8 @@ export class ClientRepayments {
   protected paiementEnCours = signal(false);
   protected paiementEffectue = signal(false);
 
+  @ViewChild('confirmModal') protected confirmModal!: ConfirmModalComponent;
+
   protected readonly modesPaiement = ['Virement', 'Cash', 'Mobile Money', 'Chèque'];
 
   constructor() {
@@ -73,6 +106,9 @@ export class ClientRepayments {
       this.loading.set(false);
       return;
     }
+
+    this.loans.set([]);
+    this.loading.set(true);
 
     this.loanService.getByClientId(userId).subscribe({
       next: (prets) => {
@@ -105,6 +141,7 @@ export class ClientRepayments {
                   montantRembourse: totalRembourse,
                   resteARembourser: grille.coutTotalCredit - totalRembourse,
                   dateProchaineEcheance: prochaine ? this.formatDate(prochaine.dateEcheancePrevue) : '-',
+                  dateEnregistrement: pret.dateEnregistrement,
                   statut: statutRemb,
                   echeances: grille.echeances,
                 },
@@ -142,9 +179,18 @@ export class ClientRepayments {
     this.selectedEcheance.set(null);
   }
 
-  protected effectuerPaiement(): void {
+  protected async effectuerPaiement(): Promise<void> {
     const echeance = this.selectedEcheance();
-    if (!echeance) return;
+    const loan = this.selectedLoan();
+    if (!echeance || !loan) return;
+
+    const confirmed = await this.confirmModal.open({
+      title: 'Confirmer le paiement',
+      message: `Payer l'échéance de ${echeance.mensualite.toLocaleString()} FCFA pour "${loan.motif}" ?`,
+      confirmLabel: 'Payer',
+      type: 'info',
+    });
+    if (!confirmed) return;
 
     this.paiementEnCours.set(true);
 

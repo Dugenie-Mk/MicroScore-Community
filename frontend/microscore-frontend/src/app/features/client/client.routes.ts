@@ -18,9 +18,19 @@ export const CLIENT_ROUTES: Routes = [
           import('./pages/client-loans/client-loans').then((m) => m.ClientLoans),
       },
       {
+        path: 'loans/:id',
+        loadComponent: () =>
+          import('./pages/client-loan-detail/client-loan-detail').then((m) => m.ClientLoanDetail),
+      },
+      {
         path: 'repayments',
         loadComponent: () =>
           import('./pages/client-repayments/client-repayments').then((m) => m.ClientRepayments),
+      },
+      {
+        path: 'repayments/:id',
+        loadComponent: () =>
+          import('./pages/client-repayment-detail/client-repayment-detail').then((m) => m.ClientRepaymentDetail),
       },
       {
         path: 'repayment-request',

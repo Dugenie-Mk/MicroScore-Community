@@ -3,6 +3,7 @@ package com.microscore.repayment_service.service;
 import com.microscore.repayment_service.dto.GenererGrilleRequest;
 import com.microscore.repayment_service.dto.GrilleAmortissementResponse;
 import com.microscore.repayment_service.dto.EcheanceDto;
+import com.microscore.repayment_service.dto.PayerMultipleRequest;
 
 import java.util.List;
 
@@ -13,6 +14,8 @@ public interface RemboursementService {
     GrilleAmortissementResponse getGrilleByIdPret(Long idPret);
 
     EcheanceDto payerEcheance(Long echeanceId);
+
+    List<EcheanceDto> payerEcheances(PayerMultipleRequest request);
 
     EcheanceDto marquerEnRetard(Long echeanceId);
 

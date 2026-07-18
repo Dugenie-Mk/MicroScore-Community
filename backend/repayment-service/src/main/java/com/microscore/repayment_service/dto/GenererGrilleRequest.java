@@ -26,4 +26,8 @@ public class GenererGrilleRequest {
 
     @NotNull(message = "La date de début est obligatoire")
     private String dateDebut; // format ISO : "2026-07-01"
+
+    private Double tauxInteret;
+
+    private String typeTaux;
 }

@@ -38,6 +38,7 @@ export interface AuthUser {
   secteurActivite?: string;
   documents?: DocumentInfo[];
   scoring?: ClientScoring;
+  mustChangePassword?: boolean;
 }
 
 interface LoginResponse {
@@ -100,6 +101,18 @@ export class AuthService {
   }
 
   private readonly userService = inject(UserService);
+
+  changePassword(userId: number, currentPassword: string, newPassword: string): Observable<AuthUser> {
+    return this.http.patch<AuthUser>(`${environment.apiUrl}/api/users/${userId}/password`, {
+      currentPassword,
+      newPassword,
+    }).pipe(
+      tap((user) => {
+        localStorage.setItem(this.userKey, JSON.stringify(user));
+        this.currentUser.set(user);
+      })
+    );
+  }
 
   updateProfile(data: Partial<AuthUser>): void {
     const current = this.currentUser();

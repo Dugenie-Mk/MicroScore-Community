@@ -2,13 +2,10 @@ import { Component, inject } from '@angular/core';
 
 import { DashboardService } from '../../core/services/dashboard.service';
 import { LoanStatus } from '../../core/models/dashboard.model';
-import { AreaChart } from '../../shared/components/charts/area-chart';
-import { BarChart } from '../../shared/components/charts/bar-chart';
-import { RadialGauge } from '../../shared/components/charts/radial-gauge';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [AreaChart, BarChart, RadialGauge],
+  imports: [],
   templateUrl: './dashboard.html',
 })
 export class Dashboard {
@@ -26,8 +23,12 @@ export class Dashboard {
         return 'Approuvé';
       case 'REJETE':
         return 'Rejeté';
+      case 'ANNULE':
+        return 'Annulé';
       case 'EN_COURS':
         return 'En cours';
+      case 'REMBOURSE':
+        return 'Remboursé';
     }
   }
 
@@ -39,8 +40,12 @@ export class Dashboard {
         return 'bg-brand-50 text-brand-700 ring-brand-600/20 dark:bg-brand-500/10 dark:text-brand-400';
       case 'REJETE':
         return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-500/10 dark:text-red-400';
+      case 'ANNULE':
+        return 'bg-gray-50 text-gray-500 ring-gray-400/30 dark:bg-gray-800/20 dark:text-gray-500';
       case 'EN_COURS':
         return 'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-500/10 dark:text-sky-400';
+      case 'REMBOURSE':
+        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-400';
     }
   }
 
@@ -48,16 +53,5 @@ export class Dashboard {
     if (score >= 70) return 'text-brand-600 dark:text-brand-400';
     if (score >= 50) return 'text-amber-600 dark:text-amber-400';
     return 'text-red-600 dark:text-red-400';
-  }
-
-  protected toneBar(tone: 'brand' | 'amber' | 'red'): string {
-    switch (tone) {
-      case 'brand':
-        return 'bg-brand-500';
-      case 'amber':
-        return 'bg-amber-500';
-      case 'red':
-        return 'bg-red-500';
-    }
   }
 }

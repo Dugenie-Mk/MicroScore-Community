@@ -1,10 +1,12 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
 import { LoanRequestService, PretApiResponse } from '../../../../core/services/loan-request.service';
 import { RepaymentService, GrilleAmortissementResponse } from '../../../../core/services/repayment.service';
+import { ToastService } from '../../../../core/services/toast.service';
+import { ConfirmModalComponent } from '../../../../shared/components/confirm-modal/confirm-modal';
 
 interface LoanItem {
   idPret: number;
@@ -25,21 +27,26 @@ const LABEL_MAP: Record<string, string> = {
   APPROUVE: 'ACCORDÉ',
   REJETE: 'REFUSÉ',
   EN_ATTENTE: 'EN_ATTENTE',
+  ANNULE: 'ANNULÉ',
 };
 
 @Component({
   selector: 'app-client-loans',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ConfirmModalComponent],
   templateUrl: './client-loans.html',
 })
 export class ClientLoans {
   private readonly auth = inject(AuthService);
   private readonly loanService = inject(LoanRequestService);
   private readonly repaymentService = inject(RepaymentService);
+  private readonly toast = inject(ToastService);
 
   protected readonly loans = signal<LoanItem[]>([]);
   protected readonly loading = signal(true);
+  protected readonly actionLoading = signal<number | null>(null);
+
+  @ViewChild('confirmModal') protected confirmModal!: ConfirmModalComponent;
 
   constructor() {
     this.loadLoans();
@@ -80,6 +87,7 @@ export class ClientLoans {
       },
       error: () => {
         this.loading.set(false);
+        this.toast.show('Erreur lors du chargement des prêts.', 'error');
       },
     });
   }
@@ -102,7 +110,9 @@ export class ClientLoans {
           })
         );
       },
-      error: () => {},
+      error: () => {
+        this.toast.show('Erreur lors du chargement de l\'amortissement.', 'error');
+      },
     });
   }
 
@@ -119,7 +129,60 @@ export class ClientLoans {
       case 'ACCORDÉ': return 'bg-green-50 text-green-700 ring-green-600/20';
       case 'REFUSÉ': return 'bg-red-50 text-red-700 ring-red-600/20';
       case 'EN_ATTENTE': return 'bg-amber-50 text-amber-700 ring-amber-600/20';
+      case 'ANNULÉ': return 'bg-gray-50 text-gray-500 ring-gray-400/30';
       default: return 'bg-gray-50 text-gray-700 ring-gray-600/20';
     }
+  }
+
+  protected async annulerPret(idPret: number): Promise<void> {
+    const clientId = this.auth.currentUser()?.id;
+    if (!clientId) return;
+
+    const confirmed = await this.confirmModal.open({
+      title: 'Annuler la demande',
+      message: 'Êtes-vous sûr de vouloir annuler cette demande de prêt ? Cette action est irréversible.',
+      confirmLabel: 'Annuler le prêt',
+      type: 'warning',
+    });
+    if (!confirmed) return;
+
+    this.actionLoading.set(idPret);
+    this.loanService.cancelLoan(idPret, clientId).subscribe({
+      next: () => {
+        this.toast.show('Prêt annulé avec succès.', 'success');
+        this.loadLoans();
+      },
+      error: (err) => {
+        this.actionLoading.set(null);
+        const msg = err.error?.message || 'Erreur lors de l\'annulation du prêt.';
+        this.toast.show(msg, 'error');
+      },
+    });
+  }
+
+  protected async supprimerPret(idPret: number): Promise<void> {
+    const clientId = this.auth.currentUser()?.id;
+    if (!clientId) return;
+
+    const confirmed = await this.confirmModal.open({
+      title: 'Supprimer la demande',
+      message: 'Êtes-vous sûr de vouloir supprimer définitivement cette demande de prêt ? Cette action est irréversible.',
+      confirmLabel: 'Supprimer',
+      type: 'danger',
+    });
+    if (!confirmed) return;
+
+    this.actionLoading.set(idPret);
+    this.loanService.deleteLoan(idPret, clientId).subscribe({
+      next: () => {
+        this.toast.show('Prêt supprimé avec succès.', 'success');
+        this.loadLoans();
+      },
+      error: (err) => {
+        this.actionLoading.set(null);
+        const msg = err.error?.message || 'Erreur lors de la suppression du prêt.';
+        this.toast.show(msg, 'error');
+      },
+    });
   }
 }

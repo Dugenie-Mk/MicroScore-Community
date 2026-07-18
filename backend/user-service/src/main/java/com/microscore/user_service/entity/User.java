@@ -55,6 +55,8 @@ public class User {
 
     private LocalDate dateNaissance;
 
+    private String lieuNaissance;
+
     private String situationMatrimoniale;
 
     private String niveauEducation;
@@ -65,9 +67,22 @@ public class User {
 
     private LocalDateTime derniereConnexion;
 
+    private String cni;
+
+    private String matricule;
+
+    @Column(nullable = false)
+    private boolean mustChangePassword;
+
+    private String motifBlocage;
+
     private String profession;
 
     private String secteurActivite;
+
+    private String sexe;
+
+    private Double revenu;
 
     public enum Role {
         CLIENT, GESTIONNAIRE, ADMIN

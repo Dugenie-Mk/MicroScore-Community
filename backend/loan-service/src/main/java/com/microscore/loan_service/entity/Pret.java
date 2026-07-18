@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 public class Pret {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idPret;
 
     @Column(name = "idClient", nullable = false)
@@ -44,6 +45,12 @@ public class Pret {
 
     @Column(name = "dateDecision")
     private LocalDateTime dateDecision;
+
+    @Column(name = "tauxInteret")
+    private Double tauxInteret;
+
+    @Column(name = "typeTaux")
+    private String typeTaux;
 
     @PrePersist
     protected void onCreate() {

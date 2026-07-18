@@ -32,10 +32,17 @@ public class UserCreateDTO {
 
     private User.Role role;
 
+    private String cni;
+    private String matricule;
+    private boolean mustChangePassword;
+
     private LocalDate dateNaissance;
+    private String lieuNaissance;
     private String situationMatrimoniale;
     private String niveauEducation;
     private Integer personnesACharge;
     private String profession;
     private String secteurActivite;
+    private String sexe;
+    private Double revenu;
 }

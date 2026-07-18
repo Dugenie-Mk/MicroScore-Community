@@ -26,11 +26,18 @@ public class UserDTO {
     private User.Role role;
     private User.StatutCompte statut;
     private LocalDate dateNaissance;
+    private String lieuNaissance;
     private String situationMatrimoniale;
     private String niveauEducation;
     private Integer personnesACharge;
+    private String cni;
+    private String matricule;
+    private boolean mustChangePassword;
+    private String motifBlocage;
     private String profession;
     private String secteurActivite;
+    private String sexe;
+    private Double revenu;
     private LocalDateTime dateCreation;
     private LocalDateTime derniereConnexion;
 }

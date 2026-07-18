@@ -6,6 +6,8 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../../core/services/auth.service';
 import { LoanRequestService } from '../../../../core/services/loan-request.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { ViewChild } from '@angular/core';
+import { ConfirmModalComponent } from '../../../../shared/components/confirm-modal/confirm-modal';
 
 interface LoanForm {
   motif: string;
@@ -17,7 +19,7 @@ interface LoanForm {
 @Component({
   selector: 'app-client-loan-form',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, ConfirmModalComponent],
   templateUrl: './client-loan-form.html',
 })
 export class ClientLoanForm {
@@ -28,6 +30,8 @@ export class ClientLoanForm {
   protected readonly loading = signal(false);
   protected readonly submitted = signal(false);
   protected readonly error = signal('');
+
+  @ViewChild('confirmModal') protected confirmModal!: ConfirmModalComponent;
 
   protected readonly form = signal<LoanForm>({
     motif: '',
@@ -49,7 +53,9 @@ export class ClientLoanForm {
     this.form.update((f) => ({ ...f, [field]: value }));
   }
 
-  protected submit(): void {
+  protected async submit(): Promise<void> {
+    if (this.loading()) return;
+
     const f = this.form();
     if (!f.motif.trim() || !f.montant || f.montant <= 0) return;
 
@@ -58,6 +64,14 @@ export class ClientLoanForm {
       this.error.set('Vous devez être connecté pour effectuer cette action.');
       return;
     }
+
+    const confirmed = await this.confirmModal.open({
+      title: 'Confirmer la demande',
+      message: `Soumettre une demande de prêt de ${f.montant.toLocaleString()} FCFA pour "${f.motif}" sur ${f.duree} mois ?`,
+      confirmLabel: 'Soumettre',
+      type: 'info',
+    });
+    if (!confirmed) return;
 
     this.loading.set(true);
     this.error.set('');

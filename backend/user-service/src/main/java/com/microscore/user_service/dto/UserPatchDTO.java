@@ -24,6 +24,10 @@ public class UserPatchDTO {
     private String situationMatrimoniale;
     private String niveauEducation;
     private Integer personnesACharge;
+    private String cni;
+    private String matricule;
+    private Boolean mustChangePassword;
+    private String motifBlocage;
     private String profession;
     private String secteurActivite;
 }

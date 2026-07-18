@@ -18,6 +18,14 @@ public class PretMapper {
                 .statut(pret.getStatut())
                 .dateEnregistrement(pret.getDateEnregistrement())
                 .dateDecision(pret.getDateDecision())
+                .tauxInteret(pret.getTauxInteret())
+                .typeTaux(pret.getTypeTaux())
                 .build();
+    }
+
+    public PretResponse toResponse(Pret pret, String clientNom) {
+        PretResponse resp = toResponse(pret);
+        resp.setClientNom(clientNom);
+        return resp;
     }
 }

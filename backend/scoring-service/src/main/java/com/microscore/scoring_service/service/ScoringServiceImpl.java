@@ -1,20 +1,21 @@
 package com.microscore.scoring_service.service;
 
-import com.microscore.scoring_service.client.LoanServiceClient;
 import com.microscore.scoring_service.dto.DemandeScoringRequest;
-import com.microscore.scoring_service.dto.EnregistrerScoreClientRequest;
+import com.microscore.scoring_service.dto.ScoreDetailResponse;
 import com.microscore.scoring_service.dto.ScoreResponse;
 import com.microscore.scoring_service.entity.*;
 import com.microscore.scoring_service.exception.ScoreNotFoundException;
 import com.microscore.scoring_service.exception.ScoringConfigurationException;
 import com.microscore.scoring_service.mapper.ScoreMapper;
+import com.microscore.scoring_service.repository.DetailScoreRepository;
 import com.microscore.scoring_service.repository.ScoreRepository;
-import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -23,9 +24,9 @@ import java.util.Map;
 public class ScoringServiceImpl implements ScoringService {
 
     private final ScoreRepository scoreRepository;
+    private final DetailScoreRepository detailScoreRepository;
     private final ScoreMapper scoreMapper;
     private final ParametreDeScoringService parametreDeScoringService;
-    private final LoanServiceClient loanServiceClient;
 
     private static final String AGE = "Âge";
     private static final String SITUATION_MATRIMONIALE = "Situation matrimoniale";
@@ -62,18 +63,21 @@ public class ScoringServiceImpl implements ScoringService {
     // ===================== MÉTHODE PRINCIPALE =====================
     @Override
     @Transactional
-    public ScoreResponse calculerScore(Long pretId, DemandeScoringRequest request) {
+    public ScoreDetailResponse calculerScore(Long pretId, DemandeScoringRequest request) {
 
         Map<String, Double> poids = parametreDeScoringService.chargerPoidsActifs();
+        List<DetailScore> tousDetails = new ArrayList<>();
 
-        double scoreTotal = 0.0;
-        scoreTotal += calculerBlocProfilSociodemographique(request, poids);
-        scoreTotal += calculerBlocCapaciteRemboursement(request, poids);
-        scoreTotal += calculerBlocMontantDuree(request, poids);
-        scoreTotal += calculerBlocHistoriqueCredit(request, poids);
-        scoreTotal += calculerBlocActiviteEconomique(request, poids);
-        scoreTotal += calculerBlocGaranties(request, poids);
-        scoreTotal += calculerBlocFacteursComportementaux(request, poids);
+        BlocResult profil = calculerBlocProfilSociodemographique(request, poids);
+        BlocResult capacite = calculerBlocCapaciteRemboursement(request, poids);
+        BlocResult montantDuree = calculerBlocMontantDuree(request, poids);
+        BlocResult historique = calculerBlocHistoriqueCredit(request, poids);
+        BlocResult activite = calculerBlocActiviteEconomique(request, poids);
+        BlocResult garanties = calculerBlocGaranties(request, poids);
+        BlocResult comportement = calculerBlocFacteursComportementaux(request, poids);
+
+        double scoreTotal = profil.total + capacite.total + montantDuree.total
+                + historique.total + activite.total + garanties.total + comportement.total;
 
         Score score = Score.builder()
                 .pretId(pretId)
@@ -83,10 +87,18 @@ public class ScoringServiceImpl implements ScoringService {
 
         Score scoreSauvegarde = scoreRepository.save(score);
 
-        // Appel best-effort à loan-service avec le score + montant + durée
-        notifierLoanService(scoreSauvegarde, request);
+        tousDetails.addAll(profil.details);
+        tousDetails.addAll(capacite.details);
+        tousDetails.addAll(montantDuree.details);
+        tousDetails.addAll(historique.details);
+        tousDetails.addAll(activite.details);
+        tousDetails.addAll(garanties.details);
+        tousDetails.addAll(comportement.details);
 
-        return scoreMapper.toResponse(scoreSauvegarde);
+        tousDetails.forEach(d -> d.setScoreId(scoreSauvegarde.getId()));
+        detailScoreRepository.saveAll(tousDetails);
+
+        return scoreMapper.toDetailResponse(scoreSauvegarde, tousDetails);
     }
 
     @Override
@@ -105,82 +117,111 @@ public class ScoringServiceImpl implements ScoringService {
         return scoreMapper.toResponse(score);
     }
 
+    @Override
+    public ScoreDetailResponse getScoreDetailById(Long scoreId) {
+        Score score = scoreRepository.findById(scoreId)
+                .orElseThrow(() -> new ScoreNotFoundException(
+                        "Aucun score trouvé avec id=" + scoreId));
+        List<DetailScore> details = detailScoreRepository.findByScoreId(scoreId);
+        return scoreMapper.toDetailResponse(score, details);
+    }
 
-    // ===================== NOTIFICATION VERS LOAN-SERVICE =====================
-    private void notifierLoanService(Score score, DemandeScoringRequest request) {
-        try {
-            EnregistrerScoreClientRequest requeteLoanService = EnregistrerScoreClientRequest.builder()
-                    .idPret(score.getPretId())
-                    .idClient(score.getClientId())
-                    .scoreTotal(score.getScoreTotal())
-                    .montant(request.getMontant())
-                    .dureeRemboursementMois(request.getDureeRemboursementMois())
-                    .build();
+    @Override
+    public List<ScoreResponse> getAllScores() {
+        return scoreRepository.findAll().stream()
+                .map(scoreMapper::toResponse)
+                .toList();
+    }
 
-            loanServiceClient.enregistrerScore(requeteLoanService);
+    @Override
+    public List<ScoreResponse> getScoresByClientId(Long clientId) {
+        return scoreRepository.findByClientIdOrderByDateCalculDesc(clientId).stream()
+                .map(scoreMapper::toResponse)
+                .toList();
+    }
 
-        } catch (FeignException ex) {
-            log.error("Échec de la transmission du score à loan-service pour le prêt id={}. " +
-                            "Le score reste enregistré dans scoring-service et devra être retransmis manuellement.",
-                    score.getPretId(), ex);
+    @Override
+    public ScoreDetailResponse getLatestScoreByClientId(Long clientId) {
+        List<Score> scores = scoreRepository.findByClientIdOrderByDateCalculDesc(clientId);
+        if (scores.isEmpty()) {
+            throw new ScoreNotFoundException("Aucun score trouvé pour le client id=" + clientId);
         }
+        Score latest = scores.get(0);
+        List<DetailScore> details = detailScoreRepository.findByScoreId(latest.getId());
+        return scoreMapper.toDetailResponse(latest, details);
     }
 
 
-    // ===================== BLOC 1 : PROFIL SOCIODÉMOGRAPHIQUE (20%) =====================
-    private double calculerBlocProfilSociodemographique(DemandeScoringRequest req,
-                                                        Map<String, Double> poids) {
+    // ===================== BLOC 1 : PROFIL SOCIODÉMOGRAPHIQUE =====================
+    private BlocResult calculerBlocProfilSociodemographique(DemandeScoringRequest req,
+                                                            Map<String, Double> poids) {
+        List<DetailScore> details = new ArrayList<>();
         double total = 0.0;
 
         double poidsAge = getPoids(poids, AGE);
         int age = req.getAge();
+        double pointsAge;
         if (age > 80) {
-            total += poidsAge / 1.25;
+            pointsAge = poidsAge / 1.25;
         } else if (age < 35) {
-            total += poidsAge / 1.5;
+            pointsAge = poidsAge / 1.5;
         } else {
-            total += poidsAge;
+            pointsAge = poidsAge;
         }
+        total += pointsAge;
+        details.add(detail(AGE, poidsAge, pointsAge));
 
         double poidsSituation = getPoids(poids, SITUATION_MATRIMONIALE);
+        double pointsSituation;
         if (req.getSituationMatrimoniale() == SituationMatrimoniale.CELIBATAIRE) {
-            total += poidsSituation / 1.25;
+            pointsSituation = poidsSituation / 1.25;
         } else {
-            total += poidsSituation;
+            pointsSituation = poidsSituation;
         }
+        total += pointsSituation;
+        details.add(detail(SITUATION_MATRIMONIALE, poidsSituation, pointsSituation));
 
-        total += getPoids(poids, NIVEAU_EDUCATION);
+        double poidsEducation = getPoids(poids, NIVEAU_EDUCATION);
+        total += poidsEducation;
+        details.add(detail(NIVEAU_EDUCATION, poidsEducation, poidsEducation));
 
         double poidsResidence = getPoids(poids, STABILITE_RESIDENTIELLE);
         Integer ancienneteResidence = req.getAncienneteResidenceMois();
+        double pointsResidence;
         if (ancienneteResidence == null) {
-            total += 0.0;
+            pointsResidence = 0.0;
         } else if (ancienneteResidence >= 60) {
-            total += poidsResidence;
+            pointsResidence = poidsResidence;
         } else if (ancienneteResidence >= 24) {
-            total += poidsResidence * 0.7;
+            pointsResidence = poidsResidence * 0.7;
         } else {
-            total += poidsResidence * 0.4;
+            pointsResidence = poidsResidence * 0.4;
         }
+        total += pointsResidence;
+        details.add(detail(STABILITE_RESIDENTIELLE, poidsResidence, pointsResidence));
 
         double poidsPersonnes = getPoids(poids, PERSONNES_A_CHARGE);
         int nbPersonnes = req.getNombrePersonnesACharge() == null
                 ? 0 : req.getNombrePersonnesACharge();
+        double pointsPersonnes;
         if (nbPersonnes <= 2) {
-            total += poidsPersonnes;
+            pointsPersonnes = poidsPersonnes;
         } else if (nbPersonnes <= 4) {
-            total += poidsPersonnes * 0.6;
+            pointsPersonnes = poidsPersonnes * 0.6;
         } else {
-            total += poidsPersonnes * 0.3;
+            pointsPersonnes = poidsPersonnes * 0.3;
         }
+        total += pointsPersonnes;
+        details.add(detail(PERSONNES_A_CHARGE, poidsPersonnes, pointsPersonnes));
 
-        return total;
+        return new BlocResult(total, details);
     }
 
 
-    // ===================== BLOC 2 : CAPACITÉ DE REMBOURSEMENT (35%) =====================
-    private double calculerBlocCapaciteRemboursement(DemandeScoringRequest req,
-                                                     Map<String, Double> poids) {
+    // ===================== BLOC 2 : CAPACITÉ DE REMBOURSEMENT =====================
+    private BlocResult calculerBlocCapaciteRemboursement(DemandeScoringRequest req,
+                                                          Map<String, Double> poids) {
+        List<DetailScore> details = new ArrayList<>();
         double total = 0.0;
 
         double revenu = req.getRevenuMensuelNet();
@@ -191,50 +232,63 @@ public class ScoringServiceImpl implements ScoringService {
 
         double poidsRevenu = getPoids(poids, REVENUS_MENSUELS);
         double ratioMensualiteRevenu = mensualitePret / revenu;
+        double pointsRevenu;
         if (ratioMensualiteRevenu > 0.5) {
-            total += poidsRevenu * 0.5;
+            pointsRevenu = poidsRevenu * 0.5;
         } else {
-            total += poidsRevenu * (1.0 - ratioMensualiteRevenu);
+            pointsRevenu = poidsRevenu * (1.0 - ratioMensualiteRevenu);
         }
+        total += pointsRevenu;
+        details.add(detail(REVENUS_MENSUELS, poidsRevenu, pointsRevenu));
 
         double poidsCharges = getPoids(poids, CHARGES_FIXES);
         double ratioChargesRevenu = chargesFixes / revenu;
+        double pointsCharges;
         if (ratioChargesRevenu > 0.5) {
-            total += poidsCharges * 0.3;
+            pointsCharges = poidsCharges * 0.3;
         } else if (ratioChargesRevenu > 0.3) {
-            total += poidsCharges * 0.6;
+            pointsCharges = poidsCharges * 0.6;
         } else {
-            total += poidsCharges;
+            pointsCharges = poidsCharges;
         }
+        total += pointsCharges;
+        details.add(detail(CHARGES_FIXES, poidsCharges, pointsCharges));
 
         double poidsEndettement = getPoids(poids, TAUX_ENDETTEMENT);
         double tauxEndettement = (chargesFixes + mensualitePret) / revenu;
+        double pointsEndettement;
         if (tauxEndettement > 0.5) {
-            total += poidsEndettement * 0.3;
+            pointsEndettement = poidsEndettement * 0.3;
         } else if (tauxEndettement >= 0.3) {
-            total += poidsEndettement * 0.5;
+            pointsEndettement = poidsEndettement * 0.5;
         } else {
-            total += poidsEndettement;
+            pointsEndettement = poidsEndettement;
         }
+        total += pointsEndettement;
+        details.add(detail(TAUX_ENDETTEMENT, poidsEndettement, pointsEndettement));
 
         double poidsFlux = getPoids(poids, FLUX_TRESORERIE);
+        double pointsFlux;
         if (fluxTresorerie <= 0) {
-            total += poidsFlux * 0.4;
+            pointsFlux = poidsFlux * 0.4;
         } else if (fluxTresorerie >= mensualitePret * 2) {
-            total += poidsFlux;
+            pointsFlux = poidsFlux;
         } else if (fluxTresorerie >= mensualitePret) {
-            total += poidsFlux * 0.7;
+            pointsFlux = poidsFlux * 0.7;
         } else {
-            total += poidsFlux * 0.3;
+            pointsFlux = poidsFlux * 0.3;
         }
+        total += pointsFlux;
+        details.add(detail(FLUX_TRESORERIE, poidsFlux, pointsFlux));
 
-        return total;
+        return new BlocResult(total, details);
     }
 
 
-    // ===================== BLOC 3 : MONTANT ET DURÉE DU PRÊT (15% + 15%) =====================
-    private double calculerBlocMontantDuree(DemandeScoringRequest req,
-                                            Map<String, Double> poids) {
+    // ===================== BLOC 3 : MONTANT ET DURÉE DU PRÊT =====================
+    private BlocResult calculerBlocMontantDuree(DemandeScoringRequest req,
+                                                Map<String, Double> poids) {
+        List<DetailScore> details = new ArrayList<>();
         double total = 0.0;
 
         double revenu = req.getRevenuMensuelNet();
@@ -242,187 +296,256 @@ public class ScoringServiceImpl implements ScoringService {
         double ratio = mensualite / revenu;
 
         double poidsMontant = getPoids(poids, MONTANT_PRET);
+        double pointsMontant;
         if (ratio > 0.5) {
-            total += poidsMontant * 0.5;
+            pointsMontant = poidsMontant * 0.5;
         } else {
-            total += poidsMontant * (1.0 - ratio);
+            pointsMontant = poidsMontant * (1.0 - ratio);
         }
+        total += pointsMontant;
+        details.add(detail(MONTANT_PRET, poidsMontant, pointsMontant));
 
         double poidsDuree = getPoids(poids, DUREE_REMBOURSEMENT);
+        double pointsDuree;
         if (ratio > 0.5) {
-            total += poidsDuree * 0.5;
+            pointsDuree = poidsDuree * 0.5;
         } else {
-            total += poidsDuree * (1.0 - ratio);
+            pointsDuree = poidsDuree * (1.0 - ratio);
         }
+        total += pointsDuree;
+        details.add(detail(DUREE_REMBOURSEMENT, poidsDuree, pointsDuree));
 
-        return total;
+        return new BlocResult(total, details);
     }
 
 
-    // ===================== BLOC 4 : HISTORIQUE DE CRÉDIT (15%) =====================
-    private double calculerBlocHistoriqueCredit(DemandeScoringRequest req,
-                                                Map<String, Double> poids) {
+    // ===================== BLOC 4 : HISTORIQUE DE CRÉDIT =====================
+    private BlocResult calculerBlocHistoriqueCredit(DemandeScoringRequest req,
+                                                    Map<String, Double> poids) {
+        List<DetailScore> details = new ArrayList<>();
         double total = 0.0;
 
         double poidsComportement = getPoids(poids, COMPORTEMENT_PRETS);
         int retards = req.getNombreRetardsAnterieurs() == null
                 ? 0 : req.getNombreRetardsAnterieurs();
+        double pointsComportement;
         if (retards == 0) {
-            total += poidsComportement;
+            pointsComportement = poidsComportement;
         } else if (retards <= 2) {
-            total += poidsComportement * 0.5;
+            pointsComportement = poidsComportement * 0.5;
         } else {
-            total += poidsComportement * 0.1;
+            pointsComportement = poidsComportement * 0.1;
         }
+        total += pointsComportement;
+        details.add(detail(COMPORTEMENT_PRETS, poidsComportement, pointsComportement));
 
         double poidsPretsEnCours = getPoids(poids, PRETS_EN_COURS);
         int pretsEnCours = req.getNombrePretsEnCours() == null
                 ? 0 : req.getNombrePretsEnCours();
+        double pointsPretsEnCours;
         if (pretsEnCours == 0) {
-            total += poidsPretsEnCours;
+            pointsPretsEnCours = poidsPretsEnCours;
         } else if (pretsEnCours == 1) {
-            total += poidsPretsEnCours * 0.6;
+            pointsPretsEnCours = poidsPretsEnCours * 0.6;
         } else {
-            total += poidsPretsEnCours * 0.2;
+            pointsPretsEnCours = poidsPretsEnCours * 0.2;
         }
+        total += pointsPretsEnCours;
+        details.add(detail(PRETS_EN_COURS, poidsPretsEnCours, pointsPretsEnCours));
 
         double poidsAncienneteClient = getPoids(poids, ANCIENNETE_CLIENT);
         int ancienneteClient = req.getAncienneteClientMois() == null
                 ? 0 : req.getAncienneteClientMois();
+        double pointsAnciennete;
         if (ancienneteClient >= 36) {
-            total += poidsAncienneteClient;
+            pointsAnciennete = poidsAncienneteClient;
         } else if (ancienneteClient >= 12) {
-            total += poidsAncienneteClient * 0.6;
+            pointsAnciennete = poidsAncienneteClient * 0.6;
         } else {
-            total += poidsAncienneteClient * 0.3;
+            pointsAnciennete = poidsAncienneteClient * 0.3;
         }
+        total += pointsAnciennete;
+        details.add(detail(ANCIENNETE_CLIENT, poidsAncienneteClient, pointsAnciennete));
 
-        return total;
+        return new BlocResult(total, details);
     }
 
 
-    // ===================== BLOC 5 : ACTIVITÉ ÉCONOMIQUE / BUSINESS (15%) =====================
-    private double calculerBlocActiviteEconomique(DemandeScoringRequest req,
-                                                  Map<String, Double> poids) {
+    // ===================== BLOC 5 : ACTIVITÉ ÉCONOMIQUE =====================
+    private BlocResult calculerBlocActiviteEconomique(DemandeScoringRequest req,
+                                                      Map<String, Double> poids) {
+        List<DetailScore> details = new ArrayList<>();
         double total = 0.0;
 
         double poidsType = getPoids(poids, TYPE_ACTIVITE);
         TypeActivite type = req.getTypeActivite();
+        double pointsType;
         if (type != null) {
-            switch (type) {
-                case SALARIE:
-                case SERVICE:
-                    total += poidsType;
-                    break;
-                case COMMERCE:
-                    total += poidsType * 0.8;
-                    break;
-                case ARTISANAT:
-                    total += poidsType * 0.6;
-                    break;
-                case AGRICULTURE:
-                    total += poidsType * 0.5;
-                    break;
-                default:
-                    total += poidsType * 0.4;
-            }
+            pointsType = switch (type) {
+                case SALARIE, SERVICE -> poidsType;
+                case COMMERCE -> poidsType * 0.8;
+                case ARTISANAT -> poidsType * 0.6;
+                case AGRICULTURE -> poidsType * 0.5;
+                default -> poidsType * 0.4;
+            };
+        } else {
+            pointsType = 0.0;
         }
+        total += pointsType;
+        details.add(detail(TYPE_ACTIVITE, poidsType, pointsType));
 
         double poidsAncienneteEntreprise = getPoids(poids, ANCIENNETE_ENTREPRISE);
         int ancienneteEntreprise = req.getAncienneteEntrepriseMois() == null
                 ? 0 : req.getAncienneteEntrepriseMois();
+        double pointsAncienneteEntreprise;
         if (ancienneteEntreprise >= 36) {
-            total += poidsAncienneteEntreprise;
+            pointsAncienneteEntreprise = poidsAncienneteEntreprise;
         } else if (ancienneteEntreprise >= 12) {
-            total += poidsAncienneteEntreprise * 0.6;
+            pointsAncienneteEntreprise = poidsAncienneteEntreprise * 0.6;
         } else {
-            total += poidsAncienneteEntreprise * 0.3;
+            pointsAncienneteEntreprise = poidsAncienneteEntreprise * 0.3;
         }
+        total += pointsAncienneteEntreprise;
+        details.add(detail(ANCIENNETE_ENTREPRISE, poidsAncienneteEntreprise, pointsAncienneteEntreprise));
 
         double poidsCA = getPoids(poids, CHIFFRE_AFFAIRES);
         double ca = req.getChiffreAffairesMensuel() == null
                 ? 0.0 : req.getChiffreAffairesMensuel();
         double mensualitePret = req.getMontant() / req.getDureeRemboursementMois();
+        double pointsCA = 0.0;
         if (ca > 0) {
             if (ca >= mensualitePret * 3) {
-                total += poidsCA;
+                pointsCA = poidsCA;
             } else if (ca >= mensualitePret * 1.5) {
-                total += poidsCA * 0.6;
+                pointsCA = poidsCA * 0.6;
             } else {
-                total += poidsCA * 0.3;
+                pointsCA = poidsCA * 0.3;
             }
         }
+        total += pointsCA;
+        details.add(detail(CHIFFRE_AFFAIRES, poidsCA, pointsCA));
 
         double poidsSecteur = getPoids(poids, SECTEUR_ACTIVITE);
         SecteurActivite secteur = req.getSecteurActivite();
+        double pointsSecteur;
         if (secteur != null) {
-            switch (secteur) {
-                case FAIBLE_RISQUE:
-                    total += poidsSecteur;
-                    break;
-                case RISQUE_MOYEN:
-                    total += poidsSecteur * 0.6;
-                    break;
-                default:
-                    total += poidsSecteur * 0.3;
-            }
+            pointsSecteur = switch (secteur) {
+                case FAIBLE_RISQUE -> poidsSecteur;
+                case RISQUE_MOYEN -> poidsSecteur * 0.6;
+                default -> poidsSecteur * 0.3;
+            };
+        } else {
+            pointsSecteur = 0.0;
         }
+        total += pointsSecteur;
+        details.add(detail(SECTEUR_ACTIVITE, poidsSecteur, pointsSecteur));
 
-        return total;
+        return new BlocResult(total, details);
     }
 
 
-    // ===================== BLOC 6 : GARANTIES ET COLLATÉRAUX (10%) =====================
-    private double calculerBlocGaranties(DemandeScoringRequest req,
-                                         Map<String, Double> poids) {
+    // ===================== BLOC 6 : GARANTIES ET COLLATÉRAUX =====================
+    private BlocResult calculerBlocGaranties(DemandeScoringRequest req,
+                                             Map<String, Double> poids) {
+        List<DetailScore> details = new ArrayList<>();
         double total = 0.0;
 
         double poidsGarantiePerso = getPoids(poids, GARANTIE_PERSONNELLE);
         boolean garantiePersonnelle = req.getGarantiePersonnelle() != null
                 && req.getGarantiePersonnelle();
-        total += garantiePersonnelle ? poidsGarantiePerso : poidsGarantiePerso * 0.2;
+        double pointsGarantiePerso = garantiePersonnelle ? poidsGarantiePerso : poidsGarantiePerso * 0.2;
+        total += pointsGarantiePerso;
+        details.add(detail(GARANTIE_PERSONNELLE, poidsGarantiePerso, pointsGarantiePerso));
 
         double poidsGarantieMaterielle = getPoids(poids, GARANTIE_MATERIELLE);
         boolean garantieMaterielle = req.getGarantieMaterielle() != null
                 && req.getGarantieMaterielle();
-        total += garantieMaterielle ? poidsGarantieMaterielle : poidsGarantieMaterielle * 0.2;
+        double pointsGarantieMaterielle = garantieMaterielle ? poidsGarantieMaterielle : poidsGarantieMaterielle * 0.2;
+        total += pointsGarantieMaterielle;
+        details.add(detail(GARANTIE_MATERIELLE, poidsGarantieMaterielle, pointsGarantieMaterielle));
 
         double poidsEpargne = getPoids(poids, EPARGNE_CONSTITUEE);
         double epargne = req.getEpargneConstituee() == null ? 0.0 : req.getEpargneConstituee();
         double ratioEpargne = epargne / req.getMontant();
+        double pointsEpargne;
         if (ratioEpargne >= 0.3) {
-            total += poidsEpargne;
+            pointsEpargne = poidsEpargne;
         } else if (ratioEpargne >= 0.1) {
-            total += poidsEpargne * 0.6;
+            pointsEpargne = poidsEpargne * 0.6;
         } else {
-            total += poidsEpargne * 0.2;
+            pointsEpargne = poidsEpargne * 0.2;
         }
+        total += pointsEpargne;
+        details.add(detail(EPARGNE_CONSTITUEE, poidsEpargne, pointsEpargne));
 
-        return total;
+        return new BlocResult(total, details);
     }
 
 
-    // ===================== BLOC 7 : FACTEURS COMPORTEMENTAUX ET QUALITATIFS (5%) =====================
-    private double calculerBlocFacteursComportementaux(DemandeScoringRequest req,
-                                                       Map<String, Double> poids) {
+    // ===================== BLOC 7 : FACTEURS COMPORTEMENTAUX =====================
+    private BlocResult calculerBlocFacteursComportementaux(DemandeScoringRequest req,
+                                                           Map<String, Double> poids) {
+        List<DetailScore> details = new ArrayList<>();
         double total = 0.0;
 
         double poidsMotivation = getPoids(poids, MOTIVATION);
         int noteMotivationBrute = req.getNoteMotivationEntretien() == null
                 ? 0 : req.getNoteMotivationEntretien();
-        total += poidsMotivation * (noteMotivationBrute / 10.0);
+        double pointsMotivation = poidsMotivation * (noteMotivationBrute / 10.0);
+        total += pointsMotivation;
+        details.add(detail(MOTIVATION, poidsMotivation, pointsMotivation));
 
         double poidsReputation = getPoids(poids, REPUTATION);
-        total += appliquerGrilleQualitative(req.getReputationCommunaute(), poidsReputation);
+        double pointsReputation = appliquerGrilleQualitative(req.getReputationCommunaute(), poidsReputation);
+        total += pointsReputation;
+        details.add(detail(REPUTATION, poidsReputation, pointsReputation));
 
         double poidsRegulariteEpargne = getPoids(poids, REGULARITE_EPARGNE);
-        total += appliquerGrilleQualitative(req.getRegulariteEpargne(), poidsRegulariteEpargne);
+        double pointsRegularite = appliquerGrilleQualitative(req.getRegulariteEpargne(), poidsRegulariteEpargne);
+        total += pointsRegularite;
+        details.add(detail(REGULARITE_EPARGNE, poidsRegulariteEpargne, pointsRegularite));
 
-        return total;
+        return new BlocResult(total, details);
     }
 
 
     // ===================== MÉTHODES UTILITAIRES =====================
+    private static final Map<String, String> CRITERE_TO_BLOC = Map.ofEntries(
+            Map.entry(AGE, "PROFIL_SOCIODEMOGRAPHIQUE"),
+            Map.entry(SITUATION_MATRIMONIALE, "PROFIL_SOCIODEMOGRAPHIQUE"),
+            Map.entry(NIVEAU_EDUCATION, "PROFIL_SOCIODEMOGRAPHIQUE"),
+            Map.entry(STABILITE_RESIDENTIELLE, "PROFIL_SOCIODEMOGRAPHIQUE"),
+            Map.entry(PERSONNES_A_CHARGE, "PROFIL_SOCIODEMOGRAPHIQUE"),
+            Map.entry(REVENUS_MENSUELS, "CAPACITE_REMBOURSEMENT"),
+            Map.entry(CHARGES_FIXES, "CAPACITE_REMBOURSEMENT"),
+            Map.entry(TAUX_ENDETTEMENT, "CAPACITE_REMBOURSEMENT"),
+            Map.entry(FLUX_TRESORERIE, "CAPACITE_REMBOURSEMENT"),
+            Map.entry(MONTANT_PRET, "MONTANT_DUREE"),
+            Map.entry(DUREE_REMBOURSEMENT, "MONTANT_DUREE"),
+            Map.entry(COMPORTEMENT_PRETS, "HISTORIQUE_CREDIT"),
+            Map.entry(PRETS_EN_COURS, "HISTORIQUE_CREDIT"),
+            Map.entry(ANCIENNETE_CLIENT, "HISTORIQUE_CREDIT"),
+            Map.entry(TYPE_ACTIVITE, "ACTIVITE_ECONOMIQUE"),
+            Map.entry(ANCIENNETE_ENTREPRISE, "ACTIVITE_ECONOMIQUE"),
+            Map.entry(CHIFFRE_AFFAIRES, "ACTIVITE_ECONOMIQUE"),
+            Map.entry(SECTEUR_ACTIVITE, "ACTIVITE_ECONOMIQUE"),
+            Map.entry(GARANTIE_PERSONNELLE, "GARANTIES"),
+            Map.entry(GARANTIE_MATERIELLE, "GARANTIES"),
+            Map.entry(EPARGNE_CONSTITUEE, "GARANTIES"),
+            Map.entry(MOTIVATION, "FACTEURS_COMPORTEMENTAUX"),
+            Map.entry(REPUTATION, "FACTEURS_COMPORTEMENTAUX"),
+            Map.entry(REGULARITE_EPARGNE, "FACTEURS_COMPORTEMENTAUX")
+    );
+
+    private DetailScore detail(String nomCritere, Double poids, Double points) {
+        return DetailScore.builder()
+                .blocCritere(CRITERE_TO_BLOC.get(nomCritere))
+                .nomCritere(nomCritere)
+                .poids(poids)
+                .pointsObtenus(arrondir(points))
+                .build();
+    }
+
     private double getPoids(Map<String, Double> poids, String nomCritere) {
         Double valeur = poids.get(nomCritere);
         if (valeur == null) {
@@ -446,4 +569,7 @@ public class ScoringServiceImpl implements ScoringService {
     private double arrondir(double valeur) {
         return Math.round(valeur * 100.0) / 100.0;
     }
+
+
+    private record BlocResult(double total, List<DetailScore> details) {}
 }

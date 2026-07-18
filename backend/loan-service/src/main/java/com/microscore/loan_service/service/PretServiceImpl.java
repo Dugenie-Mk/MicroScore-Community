@@ -2,6 +2,7 @@ package com.microscore.loan_service.service;
 
 import com.microscore.loan_service.client.RepaymentServiceClient;
 import com.microscore.loan_service.client.ScoringClient;
+import com.microscore.loan_service.client.UserClient;
 import com.microscore.loan_service.dto.CreerPretRequest;
 import com.microscore.loan_service.dto.DeciderStatutRequest;
 import com.microscore.loan_service.dto.EnregistrerScoreRequest;
@@ -9,9 +10,9 @@ import com.microscore.loan_service.dto.GenererGrilleClientRequest;
 import com.microscore.loan_service.dto.PretResponse;
 import com.microscore.loan_service.dto.ScoreResponseDTO;
 import com.microscore.loan_service.dto.ScoringRequestDTO;
+import com.microscore.loan_service.dto.UserDTO;
 import com.microscore.loan_service.entity.Pret;
 import com.microscore.loan_service.entity.StatutPret;
-import com.microscore.loan_service.exception.PretDejaExistantException;
 import com.microscore.loan_service.exception.PretNotFoundException;
 import com.microscore.loan_service.exception.StatutInvalideException;
 import com.microscore.loan_service.mapper.PretMapper;
@@ -19,11 +20,14 @@ import com.microscore.loan_service.repository.PretRepository;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.List;
 
 @Slf4j
@@ -34,6 +38,8 @@ public class PretServiceImpl implements PretService {
     private final PretRepository pretRepository;
     private final PretMapper pretMapper;
     private final RepaymentServiceClient repaymentServiceClient;
+    private final ParametreService parametreService;
+    private final UserClient userClient;
 
 
     // ===================== CRÉER UN PRÊT =====================
@@ -45,70 +51,108 @@ public class PretServiceImpl implements PretService {
                 .motif(request.getMotif())
                 .montant(request.getMontant())
                 .dureeRemboursementMois(request.getDureeRemboursementMois())
+                .scoreTotal(0.0)
                 .statut(StatutPret.EN_ATTENTE)
                 .build();
         Pret pretSauvegarde = pretRepository.save(pret);
+
+        try {
+            autoCalculerScore(pretSauvegarde);
+        } catch (Exception e) {
+            log.warn("Impossible de calculer automatiquement le score pour le prêt id={}: {}", pretSauvegarde.getIdPret(), e.getMessage());
+        }
+
         return pretMapper.toResponse(pretSauvegarde);
     }
 
+    private void autoCalculerScore(Pret pret) {
+        try {
+            UserDTO user = userClient.getUserById(pret.getIdClient());
 
-    // ===================== ENREGISTRER SCORE + CRÉER LE PRÊT =====================
-    private final ScoringClient scoringClient;
+            Integer age = (user.getDateNaissance() != null)
+                ? Period.between(user.getDateNaissance(), LocalDate.now()).getYears()
+                : 30;
 
-@Override
-@Transactional
-public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
+            String situationMatrimoniale = normaliserSituationMatrimoniale(user.getSituationMatrimoniale());
+            String niveauEducation = normaliserNiveauEducation(user.getNiveauEducation());
+            Integer personnesACharge = user.getPersonnesACharge() != null ? user.getPersonnesACharge() : 0;
 
-    if (pretRepository.existsById(request.getIdPret())) {
-        throw new PretDejaExistantException(
-                "Un score a déjà été enregistré pour le prêt id=" + request.getIdPret());
+            Integer dureeMois = pret.getDureeRemboursementMois() > 0 ? pret.getDureeRemboursementMois() : 12;
+            double revenuEstime = pret.getMontant() / dureeMois * 2;
+
+            ScoringRequestDTO scoringRequest = ScoringRequestDTO.builder()
+                    .clientId(pret.getIdClient())
+                    .age(age)
+                    .situationMatrimoniale(situationMatrimoniale)
+                    .niveauEducation(niveauEducation)
+                    .ancienneteResidenceMois(12)
+                    .nombrePersonnesACharge(personnesACharge)
+                    .revenuMensuelNet(Math.max(revenuEstime, 1.0))
+                    .chargesFixes(0.0)
+                    .fluxTresorerieActivite(0.0)
+                    .montant(pret.getMontant())
+                    .dureeRemboursementMois(pret.getDureeRemboursementMois())
+                    .nombreRetardsAnterieurs(0)
+                    .nombrePretsEnCours(0)
+                    .ancienneteClientMois(6)
+                    .typeActivite("AUTRE")
+                    .ancienneteEntrepriseMois(0)
+                    .chiffreAffairesMensuel(0.0)
+                    .secteurActivite("RISQUE_MOYEN")
+                    .garantiePersonnelle(false)
+                    .garantieMaterielle(false)
+                    .epargneConstituee(0.0)
+                    .noteMotivationEntretien(5)
+                    .reputationCommunaute("MOYEN")
+                    .regulariteEpargne("MOYEN")
+                    .build();
+
+            ScoreResponseDTO scoreResponse = scoringClient.calculerScore(pret.getIdPret(), scoringRequest);
+
+            pret.setScoreTotal(scoreResponse.getScoreTotal());
+            pretRepository.save(pret);
+
+            log.info("Score auto-calculé pour le prêt id={} (client {}): {} / 100",
+                    pret.getIdPret(), pret.getIdClient(), scoreResponse.getScoreTotal());
+        } catch (FeignException e) {
+            log.warn("Le scoring-service n'a pas pu calculer le score pour le prêt id={}. HTTP status: {}",
+                    pret.getIdPret(), e.status());
+        } catch (Exception e) {
+            log.warn("Erreur lors du calcul automatique du score pour le prêt id={}: {}", pret.getIdPret(), e.getMessage());
+        }
     }
 
-    // Appel automatique au scoring-service
-    ScoringRequestDTO scoringRequest = ScoringRequestDTO.builder()
-            .clientId(request.getIdClient())
-            .age(request.getAge())
-            .situationMatrimoniale(request.getSituationMatrimoniale())
-            .niveauEducation(request.getNiveauEducation())
-            .ancienneteResidenceMois(request.getAncienneteResidenceMois())
-            .nombrePersonnesACharge(request.getNombrePersonnesACharge())
-            .revenuMensuelNet(request.getRevenuMensuelNet())
-            .chargesFixes(request.getChargesFixes())
-            .fluxTresorerieActivite(request.getFluxTresorerieActivite())
-            .montant(request.getMontant())
-            .dureeRemboursementMois(request.getDureeRemboursementMois())
-            .nombreRetardsAnterieurs(request.getNombreRetardsAnterieurs())
-            .nombrePretsEnCours(request.getNombrePretsEnCours())
-            .ancienneteClientMois(request.getAncienneteClientMois())
-            .typeActivite(request.getTypeActivite())
-            .ancienneteEntrepriseMois(request.getAncienneteEntrepriseMois())
-            .chiffreAffairesMensuel(request.getChiffreAffairesMensuel())
-            .secteurActivite(request.getSecteurActivite())
-            .garantiePersonnelle(request.getGarantiePersonnelle())
-            .garantieMaterielle(request.getGarantieMaterielle())
-            .epargneConstituee(request.getEpargneConstituee())
-            .noteMotivationEntretien(request.getNoteMotivationEntretien())
-            .reputationCommunaute(request.getReputationCommunaute())
-            .regulariteEpargne(request.getRegulariteEpargne())
-            .build();
 
-    // Récupérer le score calculé automatiquement
-    ScoreResponseDTO scoreResponse = scoringClient.calculerScore(
-            request.getIdPret(), scoringRequest);
+    // ===================== ENREGISTRER SCORE (depuis scoring-service via Feign) =====================
+    private final ScoringClient scoringClient;
 
-    // Créer le prêt avec le score calculé automatiquement
-    Pret pret = Pret.builder()
-            .idPret(request.getIdPret())
-            .idClient(request.getIdClient())
-            .scoreTotal(scoreResponse.getScoreTotal())
-            .montant(request.getMontant())
-            .dureeRemboursementMois(request.getDureeRemboursementMois())
-            .statut(StatutPret.EN_ATTENTE)
-            .build();
+    @Override
+    @Transactional
+    public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
+        Double score = request.getScoreTotal() != null ? request.getScoreTotal() : 0.0;
 
-    Pret pretSauvegarde = pretRepository.save(pret);
-    return pretMapper.toResponse(pretSauvegarde);
-}
+        if (pretRepository.existsById(request.getIdPret())) {
+            // Le prêt existe déjà → mettre à jour le score
+            Pret existing = pretRepository.findByIdPret(request.getIdPret())
+                    .orElseThrow(() -> new RuntimeException("Prêt introuvable"));
+            existing.setScoreTotal(score);
+            log.info("Score mis à jour pour le prêt id={}: {}", existing.getIdPret(), score);
+            return pretMapper.toResponse(pretRepository.save(existing));
+        }
+
+        // Créer un nouveau prêt avec le score (l'ID est généré automatiquement)
+        Pret pret = Pret.builder()
+                .idClient(request.getIdClient())
+                .scoreTotal(score)
+                .montant(request.getMontant())
+                .dureeRemboursementMois(request.getDureeRemboursementMois())
+                .statut(StatutPret.EN_ATTENTE)
+                .build();
+
+        Pret pretSauvegarde = pretRepository.save(pret);
+        log.info("Prêt créé avec score pour id={}: {}", pretSauvegarde.getIdPret(), score);
+        return pretMapper.toResponse(pretSauvegarde);
+    }
 
 
     // ===================== RÉCUPÉRER TOUS LES PRÊTS =====================
@@ -119,6 +163,12 @@ public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
                 .toList();
     }
 
+    @Override
+    public Page<PretResponse> getAllPrets(Pageable pageable) {
+        return pretRepository.findAll(pageable)
+                .map(pretMapper::toResponse);
+    }
+
 
     // ===================== RÉCUPÉRER UN PRÊT PAR SON ID =====================
     @Override
@@ -126,6 +176,9 @@ public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
         Pret pret = pretRepository.findByIdPret(idPret)
                 .orElseThrow(() -> new PretNotFoundException(
                         "Aucun prêt trouvé avec idPret=" + idPret));
+        if (pret.getScoreTotal() == null || pret.getScoreTotal() == 0.0) {
+            autoCalculerScore(pret);
+        }
         return pretMapper.toResponse(pret);
     }
 
@@ -133,9 +186,26 @@ public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
     // ===================== RÉCUPÉRER LES PRÊTS D'UN CLIENT =====================
     @Override
     public List<PretResponse> getPretsByClientId(Long idClient) {
-        return pretRepository.findByIdClient(idClient).stream()
+        List<Pret> prets = pretRepository.findByIdClient(idClient);
+        for (Pret pret : prets) {
+            if (pret.getScoreTotal() == null || pret.getScoreTotal() == 0.0) {
+                autoCalculerScore(pret);
+            }
+        }
+        return prets.stream()
                 .map(pretMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    public Page<PretResponse> getPretsByClientId(Long idClient, Pageable pageable) {
+        return pretRepository.findByIdClient(idClient, pageable)
+                .map(pret -> {
+                    if (pret.getScoreTotal() == null || pret.getScoreTotal() == 0.0) {
+                        autoCalculerScore(pret);
+                    }
+                    return pretMapper.toResponse(pret);
+                });
     }
 
 
@@ -145,6 +215,73 @@ public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
         return pretRepository.findByStatut(statut).stream()
                 .map(pretMapper::toResponse)
                 .toList();
+    }
+
+
+    // ===================== RÉCUPÉRER LES PRÊTS FILTRÉS AVEC PAGINATION =====================
+    private PretResponse enrichirAvecNom(Pret pret) {
+        try {
+            UserDTO user = userClient.getUserById(pret.getIdClient());
+            String nom = (user.getPrenom() != null ? user.getPrenom() + " " : "")
+                       + (user.getNom() != null ? user.getNom() : "");
+            return pretMapper.toResponse(pret, nom.isBlank() ? "Client #" + pret.getIdClient() : nom);
+        } catch (Exception e) {
+            log.warn("Impossible de récupérer le nom du client {} pour le prêt {}", pret.getIdClient(), pret.getIdPret());
+            return pretMapper.toResponse(pret, "Client #" + pret.getIdClient());
+        }
+    }
+
+    @Override
+    public Page<PretResponse> getPretsFiltered(StatutPret statut, String motif, LocalDateTime dateDebut, LocalDateTime dateFin, Pageable pageable) {
+        return pretRepository.findFiltered(statut, motif, dateDebut, dateFin, pageable)
+                .map(this::enrichirAvecNom);
+    }
+
+
+    // ===================== ANNULER UN PRÊT (CLIENT) =====================
+    @Override
+    @Transactional
+    public PretResponse annulerPret(Long idPret, Long idClient) {
+        Pret pret = pretRepository.findByIdPret(idPret)
+                .orElseThrow(() -> new PretNotFoundException(
+                        "Aucun prêt trouvé avec idPret=" + idPret));
+
+        if (!pret.getIdClient().equals(idClient)) {
+            throw new RuntimeException("Ce prêt ne vous appartient pas.");
+        }
+
+        if (pret.getStatut() != StatutPret.EN_ATTENTE) {
+            throw new StatutInvalideException(
+                    "Seuls les prêts en attente peuvent être annulés.");
+        }
+
+        pret.setStatut(StatutPret.ANNULE);
+        pret.setDateDecision(LocalDateTime.now());
+        Pret pretAnnule = pretRepository.save(pret);
+        log.info("Prêt annulé par le client id={} pour le prêt id={}", idClient, idPret);
+        return pretMapper.toResponse(pretAnnule);
+    }
+
+
+    // ===================== SUPPRIMER UN PRÊT (CLIENT) =====================
+    @Override
+    @Transactional
+    public void supprimerPret(Long idPret, Long idClient) {
+        Pret pret = pretRepository.findByIdPret(idPret)
+                .orElseThrow(() -> new PretNotFoundException(
+                        "Aucun prêt trouvé avec idPret=" + idPret));
+
+        if (!pret.getIdClient().equals(idClient)) {
+            throw new RuntimeException("Ce prêt ne vous appartient pas.");
+        }
+
+        if (pret.getStatut() != StatutPret.EN_ATTENTE) {
+            throw new StatutInvalideException(
+                    "Seuls les prêts en attente peuvent être supprimés.");
+        }
+
+        pretRepository.delete(pret);
+        log.info("Prêt supprimé par le client id={} pour le prêt id={}", idClient, idPret);
     }
 
 
@@ -164,6 +301,14 @@ public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
 
         pret.setStatut(request.getStatut());
         pret.setDateDecision(LocalDateTime.now());
+        if (request.getStatut() == StatutPret.APPROUVE) {
+            String tauxStr = parametreService.getValeur("TAUX_INTERET_GLOBAL");
+            String typeTauxStr = parametreService.getValeur("TYPE_TAUX_GLOBAL");
+            Double taux = (tauxStr != null) ? Double.parseDouble(tauxStr) : 2.0;
+            String typeTaux = (typeTauxStr != null) ? typeTauxStr : "ANNUEL";
+            pret.setTauxInteret(taux);
+            pret.setTypeTaux(typeTaux);
+        }
 
         Pret pretMisAJour = pretRepository.save(pret);
 
@@ -186,6 +331,8 @@ public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
                     // La première échéance commence le 1er du mois suivant la décision
                     .dateDebut(LocalDate.now().plusMonths(1)
                             .withDayOfMonth(1).toString())
+                    .tauxInteret(pret.getTauxInteret())
+                    .typeTaux(pret.getTypeTaux())
                     .build();
 
             repaymentServiceClient.genererGrille(requete);
@@ -198,5 +345,23 @@ public PretResponse enregistrerScore(EnregistrerScoreRequest request) {
                     "La grille devra être générée manuellement via POST " +
                     "/api/remboursements/generer-grille.", pret.getIdPret(), ex);
         }
+    }
+
+    private String normaliserSituationMatrimoniale(String valeur) {
+        if (valeur == null || valeur.isBlank()) return "CELIBATAIRE";
+        String v = valeur.toUpperCase().replaceAll("[^A-Z_]", "");
+        if (v.contains("MARIE") || v.contains("MARI")) return "MARIE";
+        if (v.contains("DIVORCE") || v.contains("DIVOR")) return "DIVORCE";
+        if (v.contains("VEUF") || v.contains("VEUV")) return "VEUF";
+        return "CELIBATAIRE";
+    }
+
+    private String normaliserNiveauEducation(String valeur) {
+        if (valeur == null || valeur.isBlank()) return "SUPERIEUR";
+        String v = valeur.toUpperCase();
+        if (v.contains("PRIMAIRE")) return "PRIMAIRE";
+        if (v.contains("SECONDAIRE")) return "SECONDAIRE";
+        if (v.contains("AUCUN")) return "AUCUN";
+        return "SUPERIEUR";
     }
 }

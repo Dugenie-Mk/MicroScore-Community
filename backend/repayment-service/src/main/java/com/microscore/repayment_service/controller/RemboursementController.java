@@ -3,6 +3,7 @@ package com.microscore.repayment_service.controller;
 import com.microscore.repayment_service.dto.EcheanceDto;
 import com.microscore.repayment_service.dto.GenererGrilleRequest;
 import com.microscore.repayment_service.dto.GrilleAmortissementResponse;
+import com.microscore.repayment_service.dto.PayerMultipleRequest;
 import com.microscore.repayment_service.service.RemboursementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,16 @@ public class RemboursementController {
     @PatchMapping("/echeances/{echeanceId}/payer")
     public ResponseEntity<EcheanceDto> payerEcheance(@PathVariable Long echeanceId) {
         return ResponseEntity.ok(remboursementService.payerEcheance(echeanceId));
+    }
+
+    /**
+     * Paiement de plusieurs échéances à la fois.
+     * POST /api/remboursements/payer
+     */
+    @PostMapping("/payer")
+    public ResponseEntity<List<EcheanceDto>> payerEcheances(
+            @Valid @RequestBody PayerMultipleRequest request) {
+        return ResponseEntity.ok(remboursementService.payerEcheances(request));
     }
 
     /**

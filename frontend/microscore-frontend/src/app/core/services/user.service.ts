@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 import { User, UserRequest, ClientUser, AdminUser, GestionnaireUser } from '../models/user.model';
+import { Page } from '../models/page.model';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
@@ -24,8 +25,8 @@ export class UserService {
   }
 
   private loadUsers(): void {
-    this.getAll().subscribe({
-      next: (data) => this.users.set(data),
+    this.getAllPaginated(0, 100).subscribe({
+      next: (data) => this.users.set(data.content),
     });
   }
 
@@ -34,6 +35,10 @@ export class UserService {
   // ==========================================
   getAll(): Observable<User[]> {
     return this.http.get<User[]>(this.apiUrl);
+  }
+
+  getAllPaginated(page: number = 0, size: number = 10): Observable<Page<User>> {
+    return this.http.get<Page<User>>(`${this.apiUrl}?page=${page}&size=${size}`);
   }
 
   getById(id: number): Observable<User> {
@@ -65,29 +70,23 @@ export class UserService {
   /**
    * Récupère la liste filtrée des clients
    */
-  getClients(): Observable<ClientUser[]> {
-    return this.http.get<ClientUser[]>(`${this.apiUrl}?role=CLIENT`);
+  getClients(page: number = 0, size: number = 10): Observable<Page<ClientUser>> {
+    return this.http.get<Page<ClientUser>>(`${this.apiUrl}?role=CLIENT&page=${page}&size=${size}`);
   }
 
-  /**
-   * Récupère la liste filtrée des gestionnaires
-   */
-  getGestionnaires(): Observable<GestionnaireUser[]> {
-    return this.http.get<GestionnaireUser[]>(`${this.apiUrl}?role=GESTIONNAIRE`);
+  getGestionnaires(page: number = 0, size: number = 10): Observable<Page<GestionnaireUser>> {
+    return this.http.get<Page<GestionnaireUser>>(`${this.apiUrl}?role=GESTIONNAIRE&page=${page}&size=${size}`);
   }
 
-  /**
-   * Récupère la liste filtrée des administrateurs
-   */
-  getAdmins(): Observable<AdminUser[]> {
-    return this.http.get<AdminUser[]>(`${this.apiUrl}?role=ADMIN`);
+  getAdmins(page: number = 0, size: number = 10): Observable<Page<AdminUser>> {
+    return this.http.get<Page<AdminUser>>(`${this.apiUrl}?role=ADMIN&page=${page}&size=${size}`);
   }
 
   /**
    * Permet de modifier à la volée le statut d'un utilisateur (Activer / Bloquer)
    */
-  updateUserStatus(id: string | number, status: 'ACTIF' | 'BLOQUE'): Observable<User> {
-    return this.http.patch<User>(`${this.apiUrl}/${id}/status`, { status });
+  updateUserStatus(id: string | number, status: 'ACTIF' | 'BLOQUE', motif?: string): Observable<User> {
+    return this.http.patch<User>(`${this.apiUrl}/${id}/status`, { status, motif });
   }
 
   /**

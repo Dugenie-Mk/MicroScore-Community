@@ -2,9 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { PretApiResponse } from './loan-request.service';
 
 export interface DemandeScoringRequest {
-  clientId: number;
+  idPret: number;
+  idClient: number;
   age: number;
   situationMatrimoniale: string;
   niveauEducation: string;
@@ -30,24 +32,12 @@ export interface DemandeScoringRequest {
   regulariteEpargne?: string;
 }
 
-export interface ScoreResponse {
-  scoreId: number;
-  pretId: number;
-  clientId: number;
-  scoreTotal: number;
-  dateCalcul: string;
-}
-
 @Injectable({ providedIn: 'root' })
 export class ScoringService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = `${environment.apiUrl}/api/scores`;
+  private readonly apiUrl = `${environment.apiUrl}/api/prets`;
 
-  calculerScore(pretId: number, request: DemandeScoringRequest): Observable<ScoreResponse> {
-    return this.http.post<ScoreResponse>(`${this.apiUrl}/calculer/${pretId}`, request);
-  }
-
-  getScoreByPretId(pretId: number): Observable<ScoreResponse> {
-    return this.http.get<ScoreResponse>(`${this.apiUrl}/pret/${pretId}`);
+  calculerScore(request: DemandeScoringRequest): Observable<PretApiResponse> {
+    return this.http.post<PretApiResponse>(`${this.apiUrl}/enregistrer-score`, request);
   }
 }

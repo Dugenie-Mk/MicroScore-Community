@@ -1,7 +1,9 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+
+import { ConfirmModalComponent } from '../../../../shared/components/confirm-modal/confirm-modal';
 
 import { AuthService } from '../../../../core/services/auth.service';
 import { LoanRequestService } from '../../../../core/services/loan-request.service';
@@ -23,7 +25,7 @@ interface LoanOption {
 @Component({
   selector: 'app-client-repayment-form',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, ConfirmModalComponent],
   templateUrl: './client-repayment-form.html',
 })
 export class ClientRepaymentForm {
@@ -31,6 +33,8 @@ export class ClientRepaymentForm {
   private readonly loanService = inject(LoanRequestService);
   private readonly repaymentService = inject(RepaymentService);
   private readonly toast = inject(ToastService);
+
+  @ViewChild('confirmModal') protected confirmModal!: ConfirmModalComponent;
 
   protected readonly modesPaiement = ['Virement', 'Cash', 'Mobile Money', 'Chèque'];
 
@@ -45,14 +49,21 @@ export class ClientRepaymentForm {
   protected reference = signal('');
   protected paiementEnCours = signal(false);
 
+  protected nombreMois = signal(1);
+
   protected readonly echeancesRestantes = computed(() =>
     this.selectedLoan()?.echeances.filter((e) => e.statut !== 'PAYE') ?? []
   );
 
-  protected readonly prochaineEcheance = computed(() => {
-    const restantes = this.echeancesRestantes();
-    return restantes.length > 0 ? restantes[0] : null;
-  });
+  protected readonly maxMois = computed(() => this.echeancesRestantes().length);
+
+  protected readonly echeancesSelectionnees = computed(() =>
+    this.echeancesRestantes().slice(0, this.nombreMois())
+  );
+
+  protected readonly totalPayer = computed(() =>
+    this.echeancesSelectionnees().reduce((s, e) => s + e.mensualite, 0)
+  );
 
   constructor() {
     this.loadLoans();
@@ -64,6 +75,8 @@ export class ClientRepaymentForm {
       this.loading.set(false);
       return;
     }
+
+    this.loans.set([]);
 
     this.loanService.getByClientId(userId).subscribe({
       next: (prets) => {
@@ -117,22 +130,38 @@ export class ClientRepaymentForm {
     this.selectedLoanId.set(id);
     this.modePaiement.set('Virement');
     this.submitted.set(false);
+    this.nombreMois.set(1);
   }
 
-  protected submit(): void {
-    const echeance = this.prochaineEcheance();
-    if (!echeance) return;
+  protected async submit(): Promise<void> {
+    if (this.nombreMois() < 1 || this.echeancesSelectionnees().length === 0) return;
+
+    const loan = this.selectedLoan();
+    const echeances = this.echeancesSelectionnees();
+    if (!loan) return;
+
+    const montantTotal = echeances.reduce((s, e) => s + e.mensualite, 0);
+    const nbMois = echeances.length;
+    const msg = nbMois === 1
+      ? `Payer l'échéance de ${montantTotal.toLocaleString()} FCFA pour "${loan.motif}" ?`
+      : `Payer ${nbMois} échéances (${montantTotal.toLocaleString()} FCFA) pour "${loan.motif}" ?`;
+
+    const confirmed = await this.confirmModal.open({
+      title: 'Confirmer le paiement',
+      message: msg,
+      confirmLabel: 'Payer',
+      type: 'info',
+    });
+    if (!confirmed) return;
 
     this.paiementEnCours.set(true);
 
-    this.repaymentService.payerEcheance(echeance.id).subscribe({
+    this.repaymentService.payerEcheances(loan.idPret, nbMois).subscribe({
       next: () => {
         this.paiementEnCours.set(false);
-        const ref = 'PAY-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-        this.reference.set(ref);
         this.submitted.set(true);
+        this.reference.set('PAIEMENT-' + Date.now());
         this.toast.show('Paiement effectué avec succès.', 'success');
-        this.loadLoans();
       },
       error: (err) => {
         this.paiementEnCours.set(false);

@@ -7,9 +7,11 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { UserService } from '../../../../core/services/user.service';
 import { LoanRequestService, PretApiResponse } from '../../../../core/services/loan-request.service';
 import { RepaymentService, EcheanceDto } from '../../../../core/services/repayment.service';
-import { ScoringService, DemandeScoringRequest } from '../../../../core/services/scoring.service';
+import { ScoreResultService, ScoreDetailResponse } from '../../../../core/services/score-result.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { User } from '../../../../core/models/user.model';
+import { ViewChild } from '@angular/core';
+import { ConfirmModalComponent } from '../../../../shared/components/confirm-modal/confirm-modal';
 
 interface LoanDisplay {
   idPret: number;
@@ -36,7 +38,7 @@ interface RepaymentDisplay {
 @Component({
   selector: 'app-loan-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, ConfirmModalComponent],
   templateUrl: './loan-detail.html',
 })
 export class LoanDetail {
@@ -46,11 +48,13 @@ export class LoanDetail {
   private readonly userService = inject(UserService);
   private readonly loanService = inject(LoanRequestService);
   private readonly repaymentService = inject(RepaymentService);
-  private readonly scoringService = inject(ScoringService);
+  private readonly scoreResultService = inject(ScoreResultService);
   private readonly toast = inject(ToastService);
 
   protected readonly isAdmin = computed(() => this.auth.currentUser()?.role === 'ADMIN');
   protected readonly isGestionnaire = computed(() => this.auth.currentUser()?.role === 'GESTIONNAIRE');
+
+  @ViewChild('confirmModal') protected confirmModal!: ConfirmModalComponent;
 
   protected readonly CIRCUMFERENCE = 2 * Math.PI * 42;
 
@@ -68,6 +72,13 @@ export class LoanDetail {
   protected readonly repayments = signal<RepaymentDisplay[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
+  protected readonly fetchedScore = signal<number>(0);
+  protected readonly scoreDetail = signal<ScoreDetailResponse | null>(null);
+
+  protected readonly palette = [
+    'bg-violet-500', 'bg-emerald-500', 'bg-amber-500', 'bg-blue-500',
+    'bg-rose-500', 'bg-cyan-500', 'bg-orange-500',
+  ];
 
   protected readonly clientLoans = computed(() => this.loans());
 
@@ -75,8 +86,10 @@ export class LoanDetail {
 
   protected readonly score = computed(() => {
     const scored = this.loans().filter((l) => l.scoreTotal > 0);
-    if (scored.length === 0) return 0;
-    return Math.round(scored.reduce((s, l) => s + l.scoreTotal, 0) / scored.length);
+    if (scored.length > 0) {
+      return Math.round(scored.reduce((s, l) => s + l.scoreTotal, 0) / scored.length);
+    }
+    return this.fetchedScore();
   });
 
   protected readonly riskCategory = computed(() => {
@@ -107,15 +120,11 @@ export class LoanDetail {
   constructor() {
     this.route.paramMap.subscribe((params) => {
       const id = Number(params.get('id'));
-      if (id && id !== this.clientId()) {
-        this.clientId.set(id);
-        this.loadData();
-      }
+      if (id) this.clientId.set(id);
     });
     effect(() => {
       this.repaymentService.refreshTrigger();
-      const id = this.clientId();
-      if (id) this.loadData();
+      if (this.clientId()) this.loadData();
     });
   }
 
@@ -146,6 +155,10 @@ export class LoanDetail {
   }
 
   private loadLoans(clientId: number): void {
+    this.scoreResultService.loadLatestDetailByClientId(clientId).then((detail) => {
+      this.scoreDetail.set(detail);
+      this.fetchedScore.set(detail?.scoreTotal ?? 0);
+    });
     this.loanService.getByClientId(clientId).subscribe({
       next: (prets) => {
         this.loans.set(prets.map((p) => ({
@@ -228,11 +241,28 @@ export class LoanDetail {
     return 'bg-red-500';
   }
 
-  protected updateStatus(idPret: number, newStatus: 'APPROUVE' | 'REJETE'): void {
-    this.loanService.updateStatus(idPret, newStatus);
-    this.loans.update((items) =>
-      items.map((l) => (l.idPret === idPret ? { ...l, statut: newStatus } : l))
-    );
+  protected async updateStatus(idPret: number, newStatus: 'APPROUVE' | 'REJETE'): Promise<void> {
+    const label = newStatus === 'APPROUVE' ? 'approuver' : 'rejeter';
+    const confirmed = await this.confirmModal.open({
+      title: newStatus === 'APPROUVE' ? 'Approuver le prêt' : 'Rejeter le prêt',
+      message: `Êtes-vous sûr de vouloir ${label} ce prêt ?`,
+      confirmLabel: newStatus === 'APPROUVE' ? 'Approuver' : 'Rejeter',
+      type: newStatus === 'APPROUVE' ? 'info' : 'danger',
+    });
+    if (!confirmed) return;
+
+    this.loanService.updateStatus(idPret, newStatus).subscribe({
+      next: () => {
+        this.loans.update((items) =>
+          items.map((l) => (l.idPret === idPret ? { ...l, statut: newStatus } : l))
+        );
+        this.toast.show(
+          newStatus === 'APPROUVE' ? 'Prêt approuvé avec succès' : 'Prêt rejeté',
+          newStatus === 'APPROUVE' ? 'success' : 'warning'
+        );
+      },
+      error: () => this.toast.show('Erreur lors de la mise à jour du statut', 'error'),
+    });
   }
 
   protected getStatutClass(s: string): string {
@@ -245,6 +275,13 @@ export class LoanDetail {
       case 'EN_COURS': return 'bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400';
       default: return 'bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
     }
+  }
+
+  protected riskLabel(total: number): string {
+    if (total >= 80) return 'Faible risque';
+    if (total >= 60) return 'Risque modéré';
+    if (total >= 40) return 'Risque élevé';
+    return 'Très risqué';
   }
 
   protected getEcheanceColor(e: EcheanceDto): { dot: string; label: string } {
@@ -265,95 +302,6 @@ export class LoanDetail {
 
   protected getInitials(name: string): string {
     return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
-  }
-
-  protected showScoreModal = signal(false);
-  protected scoringPretId = signal<number | null>(null);
-  protected scoringLoading = signal(false);
-
-  protected scoreForm: DemandeScoringRequest = {
-    clientId: 0,
-    age: 30,
-    situationMatrimoniale: 'CELIBATAIRE',
-    niveauEducation: 'BAC',
-    ancienneteResidenceMois: 12,
-    nombrePersonnesACharge: 0,
-    revenuMensuelNet: 0,
-    chargesFixes: 0,
-    fluxTresorerieActivite: 0,
-    montant: 0,
-    dureeRemboursementMois: 12,
-    nombreRetardsAnterieurs: 0,
-    nombrePretsEnCours: 0,
-    ancienneteClientMois: 6,
-    ancienneteEntrepriseMois: 0,
-    chiffreAffairesMensuel: 0,
-    epargneConstituee: 0,
-    noteMotivationEntretien: 5,
-  };
-
-  protected openScoreModal(loan: LoanDisplay): void {
-    this.scoringPretId.set(loan.idPret);
-    this.scoringLoading.set(false);
-
-    const c = this.client();
-    this.scoreForm = {
-      clientId: this.clientId(),
-      age: 30,
-      situationMatrimoniale: 'CELIBATAIRE',
-      niveauEducation: 'BAC',
-      ancienneteResidenceMois: 12,
-      nombrePersonnesACharge: 0,
-      revenuMensuelNet: 0,
-      chargesFixes: 0,
-      fluxTresorerieActivite: 0,
-      montant: loan.montant,
-      dureeRemboursementMois: parseInt(loan.duree) || 12,
-      nombreRetardsAnterieurs: 0,
-      nombrePretsEnCours: 0,
-      ancienneteClientMois: 6,
-      ancienneteEntrepriseMois: 0,
-      chiffreAffairesMensuel: 0,
-      epargneConstituee: 0,
-      noteMotivationEntretien: 5,
-    };
-
-    this.showScoreModal.set(true);
-  }
-
-  protected closeScoreModal(): void {
-    this.showScoreModal.set(false);
-    this.scoringPretId.set(null);
-  }
-
-  protected submitScore(): void {
-    const pretId = this.scoringPretId();
-    if (!pretId) return;
-
-    this.scoringLoading.set(true);
-
-    const request: DemandeScoringRequest = {
-      ...this.scoreForm,
-      clientId: this.clientId(),
-      montant: this.scoreForm.montant,
-      dureeRemboursementMois: this.scoreForm.dureeRemboursementMois,
-    };
-
-    this.scoringService.calculerScore(pretId, request).subscribe({
-      next: (response) => {
-        this.scoringLoading.set(false);
-        this.toast.show(`Score calculé : ${Math.round(response.scoreTotal)}/100`, 'success');
-        this.closeScoreModal();
-        this.loans.update((items) =>
-          items.map((l) => l.idPret === pretId ? { ...l, scoreTotal: response.scoreTotal } : l)
-        );
-      },
-      error: (err) => {
-        this.scoringLoading.set(false);
-        const msg = err.error?.message || err.message || 'Erreur lors du calcul du score.';
-        this.toast.show(msg, 'error');
-      },
-    });
   }
 
   protected getEcheanceDotColor(statut: string): string {

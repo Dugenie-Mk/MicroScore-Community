@@ -1,6 +1,8 @@
 package com.microscore.user_service.repository;
 
 import com.microscore.user_service.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,4 +17,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     List<User> findByRole(User.Role role);
+
+    Page<User> findByRole(User.Role role, Pageable pageable);
 }

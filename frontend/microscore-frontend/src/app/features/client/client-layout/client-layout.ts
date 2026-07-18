@@ -3,6 +3,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/rou
 
 import { AuthService } from '../../../core/services/auth.service';
 import { ThemeService } from '../../../core/services/theme.service';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-client-layout',
@@ -13,6 +14,7 @@ import { ThemeService } from '../../../core/services/theme.service';
 export class ClientLayout {
   protected readonly auth = inject(AuthService);
   protected readonly theme = inject(ThemeService);
+  protected readonly toast = inject(ToastService);
   private readonly router = inject(Router);
 
   protected readonly mobileMenuOpen = signal(false);

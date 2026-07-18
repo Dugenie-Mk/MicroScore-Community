@@ -21,6 +21,8 @@ public class EnregistrerScoreRequest {
     @NotNull(message = "La durée de remboursement est obligatoire")
     private Integer dureeRemboursementMois;
 
+    private Double scoreTotal;
+
     // Profil sociodémographique
     private Integer age;
     private String situationMatrimoniale;

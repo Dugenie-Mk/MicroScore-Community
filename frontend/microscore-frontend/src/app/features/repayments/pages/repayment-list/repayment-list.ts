@@ -44,29 +44,48 @@ export class RepaymentList {
   protected readonly sortAsc = signal(true);
   protected readonly loading = signal(true);
 
-  protected readonly repayments = signal<Repayment[]>([]);
+  protected readonly pageSize = signal(10);
+  protected readonly currentPage = signal(0);
+  protected readonly dateDebut = signal('');
+  protected readonly dateFin = signal('');
+
+  protected readonly items = signal<Repayment[]>([]);
+  protected readonly totalElements = signal(0);
+  protected readonly totalPages = signal(1);
 
   constructor() {
-    this.loadRepayments();
+    this.loadPage();
     effect(() => {
       this.repaymentService.refreshTrigger();
-      this.loadRepayments();
+      this.loadPage();
     });
   }
 
-  private loadRepayments(): void {
+  private loadPage(): void {
     this.loading.set(true);
 
-    this.loanService.getAllPrets().subscribe({
-      next: (prets) => {
-        const approuves = prets.filter((p) => p.statut === 'APPROUVE');
-        if (approuves.length === 0) {
+    const page = this.currentPage();
+    const size = this.pageSize();
+    const motif = this.searchQuery();
+    const dd = this.dateDebut();
+    const df = this.dateFin();
+
+    this.loanService.rechercherPrets('APPROUVE', motif, page, size, undefined, undefined, dd || undefined, df || undefined).subscribe({
+      next: (pretPage) => {
+        const prets = pretPage.content;
+        this.totalElements.set(pretPage.totalElements);
+        this.totalPages.set(pretPage.totalPages);
+
+        if (prets.length === 0) {
+          this.items.set([]);
           this.loading.set(false);
           return;
         }
 
+        const results: Repayment[] = [];
         let completed = 0;
-        for (const pret of approuves) {
+
+        for (const pret of prets) {
           this.repaymentService.getAmortissementByPret(pret.idPret).subscribe({
             next: (grille) => {
               const payees = grille.echeances.filter((e) => e.statut === 'PAYE');
@@ -79,40 +98,68 @@ export class RepaymentList {
               if (allPayees) statutRemb = 'SOLDÉ';
               else if (enRetard) statutRemb = 'EN_RETARD';
 
-              // Get client name
+              const pushResult = (nom: string) => {
+                results.push({
+                  id: pret.idPret,
+                  clientId: pret.idClient,
+                  clientNom: nom,
+                  loanId: pret.idPret,
+                  motif: pret.motif || '',
+                  montantEmprunte: grille.montantEmprunte,
+                  totalARembourser: grille.coutTotalCredit,
+                  montantRembourse: totalRembourse,
+                  resteARembourser: grille.coutTotalCredit - totalRembourse,
+                  dateProchaineEcheance: prochaine ? this.formatDate(prochaine.dateEcheancePrevue) : '-',
+                  statut: statutRemb,
+                  echeances: grille.echeances,
+                });
+                completed++;
+                if (completed === prets.length) {
+                  this.finalizeItems(results);
+                }
+              };
               this.userService.getById(pret.idClient).subscribe({
-                next: (user) => {
-                  this.repayments.update((items) => [
-                    ...items,
-                    {
-                      id: pret.idPret,
-                      clientId: pret.idClient,
-                      clientNom: user.fullName,
-                      loanId: pret.idPret,
-                      motif: pret.motif || '',
-                      montantEmprunte: grille.montantEmprunte,
-                      totalARembourser: grille.coutTotalCredit,
-                      montantRembourse: totalRembourse,
-                      resteARembourser: grille.coutTotalCredit - totalRembourse,
-                      dateProchaineEcheance: prochaine ? this.formatDate(prochaine.dateEcheancePrevue) : '-',
-                      statut: statutRemb,
-                      echeances: grille.echeances,
-                    },
-                  ]);
-                },
-                error: () => {},
+                next: (user) => pushResult(user.fullName),
+                error: () => pushResult('Client #' + pret.idClient),
               });
             },
-            error: () => {},
-            complete: () => {
+            error: () => {
+              this.toast.show('Impossible de charger la grille du prêt #' + pret.idPret, 'error');
               completed++;
-              if (completed === approuves.length) this.loading.set(false);
+              if (completed === prets.length) {
+                this.finalizeItems(results);
+              }
             },
           });
         }
       },
-      error: () => this.loading.set(false),
+      error: () => {
+        this.toast.show('Erreur lors du chargement des prêts', 'error');
+        this.loading.set(false);
+      },
     });
+  }
+
+  private finalizeItems(results: Repayment[]): void {
+    const filter = this.statutFilter();
+    if (filter !== 'TOUS') {
+      results = results.filter((r) => r.statut === filter);
+    }
+    const key = this.sortKey();
+    const asc = this.sortAsc();
+    results.sort((a, b) => {
+      let cmp = 0;
+      switch (key) {
+        case 'client': cmp = a.clientNom.localeCompare(b.clientNom); break;
+        case 'montant': cmp = a.montantEmprunte - b.montantEmprunte; break;
+        case 'reste': cmp = a.resteARembourser - b.resteARembourser; break;
+        case 'echeance': cmp = a.dateProchaineEcheance.localeCompare(b.dateProchaineEcheance); break;
+        case 'statut': cmp = a.statut.localeCompare(b.statut); break;
+      }
+      return asc ? cmp : -cmp;
+    });
+    this.items.set(results);
+    this.loading.set(false);
   }
 
   private formatDate(iso: string): string {
@@ -125,7 +172,7 @@ export class RepaymentList {
     const filter = this.statutFilter();
     const key = this.sortKey();
     const asc = this.sortAsc();
-    return this.repayments()
+    return this.items()
       .filter((r) => {
         if (filter !== 'TOUS' && r.statut !== filter) return false;
         if (q && !r.clientNom.toLowerCase().includes(q) && !r.motif.toLowerCase().includes(q)) return false;
@@ -145,7 +192,7 @@ export class RepaymentList {
   });
 
   protected readonly stats = computed(() => {
-    const all = this.repayments();
+    const all = this.items();
     const totalPret = all.reduce((s, r) => s + r.montantEmprunte, 0);
     const totalRembourse = all.reduce((s, r) => s + r.montantRembourse, 0);
     const totalDu = all.reduce((s, r) => s + r.resteARembourser, 0);
@@ -155,7 +202,7 @@ export class RepaymentList {
       enRetard: all.filter((r) => r.statut === 'EN_RETARD').length,
       soldes: all.filter((r) => r.statut === 'SOLDÉ').length,
       enCours: all.filter((r) => r.statut === 'EN_COURS').length,
-      total: all.length,
+      total: this.totalElements(),
       totalPret,
       progressPct: totalPret > 0 ? Math.min(100, Math.round((totalRembourse / totalPret) * 100)) : 0,
     };
@@ -172,6 +219,18 @@ export class RepaymentList {
       this.sortKey.set(key);
       this.sortAsc.set(true);
     }
+  }
+
+  protected goToPage(page: number): void {
+    if (page >= 0 && page < this.totalPages()) {
+      this.currentPage.set(page);
+      this.loadPage();
+    }
+  }
+
+  protected onFilterChange(): void {
+    this.currentPage.set(0);
+    this.loadPage();
   }
 
   protected colors = [
@@ -222,5 +281,19 @@ export class RepaymentList {
   protected getMontantMensuel(echeances: EcheanceDto[]): number {
     const payees = echeances.filter((e) => e.statut === 'PAYE');
     return payees.length > 0 ? Math.round(payees[0].mensualite) : (echeances[0]?.mensualite ?? 0);
+  }
+
+  protected getPageRange(): number[] {
+    const total = this.totalPages();
+    const current = this.currentPage();
+    const range: number[] = [];
+    const start = Math.max(0, current - 2);
+    const end = Math.min(total - 1, current + 2);
+    for (let i = start; i <= end; i++) range.push(i);
+    return range;
+  }
+
+  protected min(a: number, b: number): number {
+    return Math.min(a, b);
   }
 }

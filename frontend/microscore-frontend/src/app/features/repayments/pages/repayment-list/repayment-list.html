@@ -39,39 +39,70 @@
   </div>
 
   <!-- Filtres -->
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <div class="relative flex-1 max-w-sm">
-      <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-      </svg>
-      <input
-        type="text"
-        [ngModel]="searchQuery()"
-        (ngModelChange)="searchQuery.set($event)"
-        placeholder="Rechercher client ou motif..."
-        class="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
-      />
-    </div>
-    <div class="flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
-      @for (opt of ['TOUS', 'EN_COURS', 'SOLDÉ', 'EN_RETARD']; track opt) {
-        <button
-          (click)="statutFilter.set(opt)"
-          class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-200"
-          [class.bg-white]="statutFilter() === opt"
-          [class.text-brand-700]="statutFilter() === opt"
-          [class.shadow-sm]="statutFilter() === opt"
-          [class.text-gray-500]="statutFilter() !== opt"
-          [class.hover:text-gray-700]="statutFilter() !== opt"
-          [class.dark:bg-gray-700]="statutFilter() === opt"
-          [class.dark:text-brand-400]="statutFilter() === opt"
-          [class.dark:text-gray-400]="statutFilter() !== opt"
-        >
+  <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="relative flex-1 max-w-sm">
+        <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+        </svg>
+        <input
+          type="text"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event); onFilterChange()"
+          placeholder="Rechercher client ou motif..."
+          class="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
+        />
+      </div>
+      <div class="flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
+        @for (opt of ['TOUS', 'EN_COURS', 'SOLDÉ', 'EN_RETARD']; track opt) {
+          <button
+            (click)="statutFilter.set(opt)"
+            class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-200"
+            [class.bg-white]="statutFilter() === opt"
+            [class.text-brand-700]="statutFilter() === opt"
+            [class.shadow-sm]="statutFilter() === opt"
+            [class.text-gray-500]="statutFilter() !== opt"
+            [class.hover:text-gray-700]="statutFilter() !== opt"
+            [class.dark:bg-gray-700]="statutFilter() === opt"
+            [class.dark:text-brand-400]="statutFilter() === opt"
+            [class.dark:text-gray-400]="statutFilter() !== opt"
+          >
           @switch (opt) {
-            @case ('TOUS') { Tous ({{ stats().total }}) }
-            @case ('EN_COURS') { En cours ({{ stats().enCours }}) }
-            @case ('SOLDÉ') { Soldés ({{ stats().soldes }}) }
-            @case ('EN_RETARD') { En retard ({{ stats().enRetard }}) }
+            @case ('TOUS') { Tous }
+            @case ('EN_COURS') { En cours }
+            @case ('SOLDÉ') { Soldé }
+            @case ('EN_RETARD') { En retard }
           }
+          </button>
+        }
+      </div>
+    </div>
+    <!-- Filtre par date -->
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Du</label>
+        <input
+          type="date"
+          [ngModel]="dateDebut()"
+          (ngModelChange)="dateDebut.set($event); onFilterChange()"
+          class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+        />
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-medium text-gray-500 dark:text-gray-400">Au</label>
+        <input
+          type="date"
+          [ngModel]="dateFin()"
+          (ngModelChange)="dateFin.set($event); onFilterChange()"
+          class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+        />
+      </div>
+      @if (dateDebut() || dateFin()) {
+        <button
+          (click)="dateDebut.set(''); dateFin.set(''); onFilterChange()"
+          class="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400"
+        >
+          Effacer dates
         </button>
       }
     </div>
@@ -79,13 +110,17 @@
 
   <!-- Résultat count -->
   <div class="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-    <span>{{ filtered().length }} résultat(s)</span>
+    <span>{{ totalElements() }} résultat(s)</span>
     @if (searchQuery()) {
       <span>· Recherche : "{{ searchQuery() }}"</span>
     }
     @if (statutFilter() !== 'TOUS') {
       <span>· Filtre : {{ getStatusColor(statutFilter()).label }}</span>
     }
+    @if (dateDebut() || dateFin()) {
+      <span>· Période : {{ dateDebut() || '…' }} → {{ dateFin() || '…' }}</span>
+    }
+    <span>· Page {{ currentPage() + 1 }}/{{ totalPages() }}</span>
   </div>
 
   <!-- Table -->
@@ -328,6 +363,80 @@
           }
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Pagination (backend) -->
+  <div class="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+    <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+      <span>Lignes par page</span>
+      <select
+        [ngModel]="pageSize()"
+        (ngModelChange)="pageSize.set($event); onFilterChange()"
+        class="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 focus:border-brand-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+      >
+        <option [value]="5">5</option>
+        <option [value]="10">10</option>
+        <option [value]="20">20</option>
+        <option [value]="50">50</option>
+      </select>
+      <span>{{ currentPage() * pageSize() + 1 }}–{{ min((currentPage() + 1) * pageSize(), totalElements()) }} sur {{ totalElements() }}</span>
+    </div>
+
+    <div class="flex items-center gap-1">
+      <button
+        (click)="goToPage(0)"
+        [disabled]="totalPages() <= 1"
+        class="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m18.75 4.5-7.5 7.5 7.5 7.5m-6-15L5.25 12l7.5 7.5" />
+        </svg>
+      </button>
+      <button
+        (click)="goToPage(currentPage() - 1)"
+        [disabled]="currentPage() === 0"
+        class="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+      </button>
+
+      @for (p of getPageRange(); track p) {
+        <button
+          (click)="goToPage(p)"
+          class="flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-xs font-semibold transition-all"
+          [class.bg-brand-600]="p === currentPage()"
+          [class.text-white]="p === currentPage()"
+          [class.shadow-sm]="p === currentPage()"
+          [class.text-gray-600]="p !== currentPage()"
+          [class.hover:bg-gray-100]="p !== currentPage()"
+          [class.dark:text-gray-300]="p !== currentPage()"
+          [class.dark:hover:bg-gray-800]="p !== currentPage()"
+        >
+          {{ p + 1 }}
+        </button>
+      }
+
+      <button
+        (click)="goToPage(currentPage() + 1)"
+        [disabled]="currentPage() >= totalPages() - 1"
+        class="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+        </svg>
+      </button>
+      <button
+        (click)="goToPage(totalPages() - 1)"
+        [disabled]="totalPages() <= 1"
+        class="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium text-gray-500 transition-all hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m5.25 4.5 7.5 7.5-7.5 7.5m6-15 7.5 7.5-7.5 7.5" />
+        </svg>
+      </button>
     </div>
   </div>
 </div>

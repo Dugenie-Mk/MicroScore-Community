@@ -2,6 +2,21 @@ import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { ViewChild } from '@angular/core';
+import { ConfirmModalComponent } from '../../../../shared/components/confirm-modal/confirm-modal';
+
+function generateTempPassword(): string {
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const all = upper + lower + digits;
+  let pw = '';
+  pw += upper[Math.floor(Math.random() * upper.length)];
+  pw += lower[Math.floor(Math.random() * lower.length)];
+  pw += digits[Math.floor(Math.random() * digits.length)];
+  for (let i = 0; i < 6; i++) pw += all[Math.floor(Math.random() * all.length)];
+  return pw.split('').sort(() => Math.random() - 0.5).join('');
+}
 
 import { AuthService } from '../../../../core/services/auth.service';
 import { UserService } from '../../../../core/services/user.service';
@@ -19,7 +34,7 @@ interface UserData extends User {
 @Component({
   selector: 'app-user-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, ConfirmModalComponent],
   templateUrl: './user-list.html',
 })
 export class UserListComponent {
@@ -47,6 +62,9 @@ export class UserListComponent {
   });
 
   readonly allUsers = signal<UserData[]>([]);
+  currentPage = signal(0);
+  totalPages = signal(0);
+  totalElements = signal(0);
 
   // ---- Filtered & sorted list ----
   filteredUsers = computed(() => {
@@ -67,7 +85,7 @@ export class UserListComponent {
   stats = computed(() => {
     const users = this.allUsers();
     return {
-      total: users.length,
+      total: this.totalElements(),
       clients: users.filter(u => u.role === 'CLIENT').length,
       gestionnaires: users.filter(u => u.role === 'GESTIONNAIRE').length,
       admins: users.filter(u => u.role === 'ADMIN').length,
@@ -80,6 +98,10 @@ export class UserListComponent {
   // ---- Create user form ----
   private readonly userService = inject(UserService);
   private readonly toast = inject(ToastService);
+  @ViewChild('confirmModal') protected confirmModal!: ConfirmModalComponent;
+
+  generatedPassword = signal('');
+  showPassword = signal(false);
 
   newUser = signal({
     fullName: '',
@@ -88,6 +110,15 @@ export class UserListComponent {
     role: 'CLIENT' as 'CLIENT' | 'GESTIONNAIRE' | 'ADMIN',
     cni: '',
     matricule: '',
+    dateNaissance: '',
+    lieuNaissance: '',
+    situationMatrimoniale: '',
+    niveauEducation: '',
+    personnesACharge: 0,
+    sexe: '',
+    revenu: 0,
+    profession: '',
+    secteurActivite: '',
   });
 
   setRole(role: string) {
@@ -95,46 +126,96 @@ export class UserListComponent {
   }
 
   openCreateModal() {
-    this.newUser.set({ fullName: '', email: '', telephone: '', role: 'CLIENT', cni: '', matricule: '' });
+    this.newUser.set({
+      fullName: '', email: '', telephone: '', role: 'CLIENT',
+      cni: '', matricule: '', dateNaissance: '', lieuNaissance: '',
+      situationMatrimoniale: '', niveauEducation: '', personnesACharge: 0,
+      sexe: '', revenu: 0,
+      profession: '', secteurActivite: '',
+    });
+    this.generatedPassword.set('');
+    this.showPassword.set(false);
     this.showCreateModal.set(true);
     this.menuOpenId.set(null);
   }
 
   closeCreateModal() {
     this.showCreateModal.set(false);
+    this.generatedPassword.set('');
+    this.showPassword.set(false);
+  }
+
+  copyPassword() {
+    navigator.clipboard.writeText(this.generatedPassword());
+    this.toast.show('Mot de passe copié !', 'success');
   }
 
   createUser() {
     const form = this.newUser();
     if (!form.fullName.trim() || !form.email.trim()) return;
 
+    const tempPw = generateTempPassword();
+    this.generatedPassword.set(tempPw);
+
     this.userService.create({
       fullName: form.fullName.trim(),
       email: form.email.trim(),
-      motDePasse: 'default123',
+      motDePasse: tempPw,
       telephone: form.telephone.trim() || undefined,
       role: form.role,
+      cni: form.cni.trim() || undefined,
+      matricule: form.matricule.trim() || undefined,
+      mustChangePassword: true,
+      dateNaissance: form.dateNaissance || undefined,
+      lieuNaissance: form.lieuNaissance || undefined,
+      situationMatrimoniale: form.situationMatrimoniale || undefined,
+      niveauEducation: form.niveauEducation || undefined,
+      personnesACharge: form.personnesACharge > 0 ? form.personnesACharge : undefined,
+      sexe: form.sexe || undefined,
+      revenu: form.revenu > 0 ? form.revenu : undefined,
+      profession: form.profession || undefined,
+      secteurActivite: form.secteurActivite || undefined,
     }).subscribe({
       next: () => {
-        this.toast.show('Utilisateur créé avec succès.', 'success');
+        this.showPassword.set(true);
         this.loadUsers();
-        this.closeCreateModal();
       },
       error: (err) => {
         const msg = err.error?.message || err.message || 'Erreur lors de la création. Vérifiez que le backend est en cours d\'exécution.';
         this.toast.show(msg, 'error');
+        this.generatedPassword.set('');
       },
     });
   }
 
   constructor() {
-    this.loadUsers();
+    this.loadUsers(0);
   }
 
-  private loadUsers() {
-    this.userService.getAll().subscribe({
-      next: (data) => this.allUsers.set(data),
+  private loadUsers(page: number = 0) {
+    this.userService.getAllPaginated(page, 10).subscribe({
+      next: (data) => {
+        this.allUsers.set(data.content);
+        this.currentPage.set(data.number);
+        this.totalPages.set(data.totalPages);
+        this.totalElements.set(data.totalElements);
+      },
     });
+  }
+
+  goToPage(page: number) {
+    if (page < 0 || page >= this.totalPages()) return;
+    this.loadUsers(page);
+  }
+
+  get pages(): number[] {
+    const total = this.totalPages();
+    const current = this.currentPage();
+    const maxVisible = 5;
+    if (total <= maxVisible) return Array.from({ length: total }, (_, i) => i);
+    const start = Math.max(0, current - Math.floor(maxVisible / 2));
+    const end = Math.min(total, start + maxVisible);
+    return Array.from({ length: end - start }, (_, i) => start + i);
   }
 
   getInitials(name: string): string {
@@ -155,13 +236,43 @@ export class UserListComponent {
     this.menuOpenId.set(this.menuOpenId() === id ? null : id);
   }
 
-  toggleStatus(user: UserData) {
-    const newStatus = user.statut === 'ACTIF' ? 'BLOQUE' : 'ACTIF';
-    this.userService.updateUserStatus(user.id, newStatus).subscribe({
+  async toggleStatus(user: UserData) {
+    if (user.statut === 'BLOQUE') {
+      const confirmed = await this.confirmModal.open({
+        title: 'Débloquer l\'utilisateur',
+        message: `Êtes-vous sûr de vouloir débloquer ${user.fullName} ?`,
+        confirmLabel: 'Débloquer',
+        type: 'warning',
+      });
+      if (!confirmed) return;
+      this.userService.updateUserStatus(user.id, 'ACTIF').subscribe({
+        next: () => {
+          this.loadUsers();
+          this.menuOpenId.set(null);
+          this.toast.show(`${user.fullName} a été débloqué.`, 'success');
+        },
+        error: () => this.toast.show('Erreur lors du déblocage.', 'error'),
+      });
+      return;
+    }
+
+    const motif = await this.confirmModal.open({
+      title: 'Bloquer l\'utilisateur',
+      message: `Êtes-vous sûr de vouloir bloquer ${user.fullName} ?`,
+      confirmLabel: 'Bloquer',
+      type: 'danger',
+      promptLabel: 'Motif du blocage',
+      promptPlaceholder: 'Raison du blocage...',
+    });
+    if (!motif || typeof motif !== 'string' || !motif.trim()) return;
+
+    this.userService.updateUserStatus(user.id, 'BLOQUE', motif.trim()).subscribe({
       next: () => {
         this.loadUsers();
         this.menuOpenId.set(null);
+        this.toast.show(`${user.fullName} a été bloqué.`, 'warning');
       },
+      error: () => this.toast.show('Erreur lors du blocage.', 'error'),
     });
   }
 

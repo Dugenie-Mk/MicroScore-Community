@@ -15,4 +15,6 @@ public class GenererGrilleClientRequest {
     private Double montant;
     private Integer dureeRemboursementMois;
     private String dateDebut;
+    private Double tauxInteret;
+    private String typeTaux;
 }

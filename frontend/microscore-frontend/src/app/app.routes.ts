@@ -10,6 +10,10 @@ export const routes: Routes = [
     loadChildren: () => import('./features/auth/auth.routes').then((m) => m.AUTH_ROUTES),
   },
   {
+    path: 'change-password',
+    loadComponent: () => import('./features/auth/change-password/change-password').then((m) => m.ChangePasswordComponent),
+  },
+  {
     path: '',
     component: MainLayout,
     canActivate: [authGuard, roleGuard('GESTIONNAIRE', 'ADMIN')],

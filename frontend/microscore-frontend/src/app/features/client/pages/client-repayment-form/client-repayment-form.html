@@ -7,7 +7,7 @@
     </span>
     <h2 class="mt-4 text-lg font-bold text-gray-900 dark:text-white">Paiement effectué</h2>
     <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-      {{ prochaineEcheance()?.mensualite | number:'1.0-0' }} FCFA remboursés sur <strong>{{ selectedLoan()?.motif }}</strong>
+      {{ totalPayer() | number:'1.0-0' }} FCFA remboursés sur <strong>{{ selectedLoan()?.motif }}</strong>
     </p>
     <div class="mt-2 rounded-lg bg-gray-50 px-4 py-2 dark:bg-gray-800/30">
       <p class="text-xs text-gray-400 dark:text-gray-500">Référence</p>
@@ -142,15 +142,49 @@
             }
           </div>
 
-          <!-- Montant -->
-          @let echeance = prochaineEcheance();
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Montant à rembourser</label>
-            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-              <p class="text-lg font-bold text-gray-900 dark:text-white">{{ echeance?.mensualite | number:'1.0-0' }} FCFA</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">Échéance du {{ echeance?.dateEcheancePrevue?.substring(0, 10) }}</p>
+          <!-- Nombre de mois à payer -->
+          @if (maxMois() > 0) {
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Nombre de mensualités à payer</label>
+              <div class="flex flex-wrap gap-2">
+                @for (m of [].constructor(maxMois()); track $index) {
+                  @let val = $index + 1;
+                  <button
+                    (click)="nombreMois.set(val)"
+                    class="min-w-[2.5rem] rounded-lg border-2 px-3 py-2 text-sm font-semibold transition-all"
+                    [class.border-brand-600]="nombreMois() === val"
+                    [class.bg-brand-50]="nombreMois() === val"
+                    [class.text-brand-700]="nombreMois() === val"
+                    [class.border-gray-200]="nombreMois() !== val"
+                    [class.text-gray-600]="nombreMois() !== val"
+                    [class.hover:border-gray-300]="nombreMois() !== val"
+                    [class.dark:border-gray-600]="nombreMois() !== val"
+                    [class.dark:text-gray-300]="nombreMois() !== val"
+                  >
+                    {{ val }}
+                  </button>
+                }
+              </div>
             </div>
-          </div>
+
+            <!-- Détail des échéances sélectionnées -->
+            @if (echeancesSelectionnees().length > 0) {
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Montant à rembourser</label>
+                <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+                  <p class="text-lg font-bold text-gray-900 dark:text-white">{{ totalPayer() | number:'1.0-0' }} FCFA</p>
+                  <div class="mt-2 space-y-1">
+                    @for (ech of echeancesSelectionnees(); track ech.id) {
+                      <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-500 dark:text-gray-400">N°{{ ech.numeroEcheance }} · {{ ech.dateEcheancePrevue.substring(0, 10) }}</span>
+                        <span class="font-medium text-gray-900 dark:text-white">{{ ech.mensualite | number:'1.0-0' }} FCFA</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          }
 
           <!-- Mode de paiement -->
           <div>
@@ -202,7 +236,7 @@
                 </svg>
                 Paiement...
               } @else {
-                Payer {{ prochaineEcheance()?.mensualite | number:'1.0-0' }} FCFA
+                Payer {{ totalPayer() | number:'1.0-0' }} FCFA
               }
             </button>
           </div>
@@ -210,4 +244,5 @@
       </div>
     </div>
   </div>
+  <app-confirm-modal #confirmModal />
 }

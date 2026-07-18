@@ -6,7 +6,7 @@
       @if (loading()) {
         <p class="text-sm text-gray-500 dark:text-gray-400">Chargement...</p>
       } @else {
-        <p class="text-sm text-gray-500 dark:text-gray-400">{{ loans().length }} prêt(s) en cours</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ loans().length }} prêt(s) · {{ filteredLoans().length }} affiché(s)</p>
       }
     </div>
     <div class="flex flex-wrap items-center gap-2">
@@ -28,38 +28,86 @@
   </div>
 
   <!-- Stats cards -->
-  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-    <div class="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
-      <p class="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{{ stats().totalDu | number:'1.0-0' }}</p>
+  <div class="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">
+    <div class="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+      <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white truncate">{{ stats().totalDu | number:'1.0-0' }}</p>
       <p class="text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Reste dû</p>
     </div>
-    <div class="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
-      <p class="text-sm sm:text-lg font-bold text-green-700 dark:text-green-400 truncate">{{ stats().totalRembourse | number:'1.0-0' }}</p>
+    <div class="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+      <p class="text-base sm:text-lg font-bold text-green-700 dark:text-green-400 truncate">{{ stats().totalRembourse | number:'1.0-0' }}</p>
       <p class="text-[10px] font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Remboursé</p>
     </div>
-    <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-900/30 dark:bg-amber-950/20">
-      <p class="text-sm sm:text-lg font-bold text-amber-700 dark:text-amber-300">{{ stats().enRetard }}</p>
+    <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-3 sm:p-4 dark:border-amber-900/30 dark:bg-amber-950/20">
+      <p class="text-base sm:text-lg font-bold text-amber-700 dark:text-amber-300">{{ stats().enRetard }}</p>
       <p class="text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">En retard</p>
     </div>
-    <div class="rounded-xl border border-green-200 bg-green-50/50 p-3 dark:border-green-900/30 dark:bg-green-950/20">
-      <p class="text-sm sm:text-lg font-bold text-green-700 dark:text-green-300">{{ stats().soldes }}</p>
+    <div class="rounded-xl border border-green-200 bg-green-50/50 p-3 sm:p-4 dark:border-green-900/30 dark:bg-green-950/20">
+      <p class="text-base sm:text-lg font-bold text-green-700 dark:text-green-300">{{ stats().soldes }}</p>
       <p class="text-[10px] font-medium uppercase tracking-wider text-green-600 dark:text-green-400">Soldés</p>
     </div>
   </div>
 
-  <!-- Progress bar -->
-  <div class="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-900 dark:ring-1 dark:ring-gray-800">
-    <div class="flex items-center justify-between text-sm mb-2">
+  <!-- Global progress bar -->
+  <div class="rounded-xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+    <div class="flex items-center justify-between text-xs sm:text-sm">
       <span class="text-gray-500 dark:text-gray-400">Progression remboursement</span>
       <span class="font-semibold text-gray-900 dark:text-white">{{ progressPct() }}%</span>
     </div>
-    <div class="h-2.5 rounded-full bg-gray-100 dark:bg-gray-800">
-      <div class="h-2.5 rounded-full bg-gradient-to-r from-green-500 to-brand-500 transition-all duration-700" [style.width.%]="progressPct()"></div>
+    <div class="mt-2 h-2 rounded-full bg-gray-100 dark:bg-gray-800">
+      <div class="h-2 rounded-full bg-gradient-to-r from-green-500 to-brand-500 transition-all duration-700" [style.width.%]="progressPct()"></div>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="rounded-xl border border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+    <div class="flex flex-wrap items-end gap-2 sm:gap-3">
+      <!-- Statut -->
+      <div class="flex-1 min-w-[120px]">
+        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1 dark:text-gray-400">Statut</label>
+        <div class="flex flex-wrap gap-1">
+          @for (opt of statutOptions; track opt) {
+            <button (click)="statutFilter.set(opt)"
+              class="rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all"
+              [class.border-brand-600]="statutFilter() === opt"
+              [class.bg-brand-50]="statutFilter() === opt"
+              [class.text-brand-700]="statutFilter() === opt"
+              [class.border-gray-200]="statutFilter() !== opt"
+              [class.text-gray-600]="statutFilter() !== opt"
+              [class.hover:border-gray-300]="statutFilter() !== opt"
+              [class.dark:border-gray-600]="statutFilter() !== opt"
+              [class.dark:text-gray-300]="statutFilter() !== opt">
+              {{ opt === 'TOUS' ? 'Tous' : getStatutLabel(opt) }}
+            </button>
+          }
+        </div>
+      </div>
+      <!-- Date début -->
+      <div class="w-[130px] sm:w-[150px]">
+        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1 dark:text-gray-400">Du</label>
+        <input type="date" [ngModel]="dateDebut()" (ngModelChange)="dateDebut.set($event)"
+          class="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 shadow-sm transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
+      </div>
+      <!-- Date fin -->
+      <div class="w-[130px] sm:w-[150px]">
+        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1 dark:text-gray-400">Au</label>
+        <input type="date" [ngModel]="dateFin()" (ngModelChange)="dateFin.set($event)"
+          class="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-900 shadow-sm transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
+      </div>
+      <!-- Reset -->
+      @if (statutFilter() !== 'TOUS' || dateDebut() || dateFin()) {
+        <button (click)="statutFilter.set('TOUS'); dateDebut.set(''); dateFin.set('')"
+          class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-500 transition hover:bg-gray-50 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800">
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+          Réinitialiser
+        </button>
+      }
     </div>
   </div>
 
   <!-- Loan repayment cards -->
-  <div class="space-y-4">
+  <div class="space-y-3">
     @if (loading()) {
       <div class="flex items-center justify-center py-12">
         <svg class="h-6 w-6 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
@@ -68,28 +116,33 @@
         </svg>
       </div>
     } @else {
-      @for (loan of loans(); track loan.idPret) {
-      <div class="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      @for (loan of filteredLoans(); track loan.idPret) {
+      <div class="rounded-xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
         <!-- Header -->
-        <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4 dark:border-gray-800">
-          <div>
-            <h3 class="font-semibold text-gray-900 dark:text-white">{{ loan.motif }}</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Prêt de {{ loan.montantEmprunte | number:'1.0-0' }} FCFA</p>
+        <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+          <div class="min-w-0">
+            <p class="font-semibold text-gray-900 dark:text-white truncate">{{ loan.motif }}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ loan.montantEmprunte | number:'1.0-0' }} FCFA</p>
           </div>
-          <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getStatusClass(loan.statut) }}">
+          <span class="shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ getStatusClass(loan.statut) }}">
+            <span class="h-1.5 w-1.5 rounded-full"
+              [class.bg-green-500]="loan.statut === 'SOLDÉ'"
+              [class.bg-blue-500]="loan.statut === 'EN_COURS'"
+              [class.bg-red-500]="loan.statut === 'EN_RETARD'"
+            ></span>
             {{ getStatutLabel(loan.statut) }}
           </span>
         </div>
 
-        <!-- Progress + infos -->
-        <div class="px-5 py-4">
-          <div class="mb-3 flex items-center justify-between gap-2 text-sm">
-            <span class="text-gray-500 dark:text-gray-400 shrink-0">Remboursement</span>
-            <span class="font-semibold text-gray-900 dark:text-white text-right truncate min-w-0">
+        <!-- Content -->
+        <div class="px-4 py-3">
+          <div class="flex items-center justify-between text-xs sm:text-sm">
+            <span class="text-gray-500 dark:text-gray-400">Remboursement</span>
+            <span class="font-semibold text-gray-900 dark:text-white">
               {{ loan.montantRembourse | number:'1.0-0' }} / {{ loan.totalARembourser | number:'1.0-0' }}
             </span>
           </div>
-          <div class="h-2 rounded-full bg-gray-100 dark:bg-gray-800">
+          <div class="mt-2 h-2 rounded-full bg-gray-100 dark:bg-gray-800">
             <div class="h-2 rounded-full transition-all duration-500"
               [style.width.%]="(loan.montantRembourse / loan.totalARembourser) * 100"
               [class.bg-green-500]="loan.statut === 'SOLDÉ'"
@@ -97,18 +150,22 @@
             ></div>
           </div>
 
-          <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3 text-xs">
+          <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs">
             <div class="flex items-center justify-between sm:block">
-              <p class="text-gray-400 dark:text-gray-500">Reste à payer</p>
-              <p class="font-semibold text-gray-900 dark:text-white truncate" [class.text-red-600]="loan.resteARembourser > 0">{{ loan.resteARembourser | number:'1.0-0' }}</p>
+              <p class="text-gray-400 dark:text-gray-500">Reste</p>
+              <p class="font-semibold truncate"
+                [class.text-red-600]="loan.resteARembourser > 0"
+                [class.text-gray-900]="loan.resteARembourser === 0"
+              >{{ loan.resteARembourser | number:'1.0-0' }}</p>
             </div>
             <div class="flex items-center justify-between sm:block">
               <p class="text-gray-400 dark:text-gray-500">Prochaine échéance</p>
               <p class="font-semibold text-gray-900 dark:text-white">{{ loan.dateProchaineEcheance }}</p>
             </div>
-            <div class="flex items-center justify-end sm:justify-end">
+            <div class="flex items-center justify-end">
               @if (loan.statut !== 'SOLDÉ') {
-                <button (click)="openPayModal(loan)" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700 active:scale-95">
+                <button (click)="openPayModal(loan)"
+                  class="w-full sm:w-auto inline-flex items-center justify-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700 active:scale-95">
                   <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
@@ -116,7 +173,7 @@
                 </button>
               } @else {
                 <span class="inline-flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400">
-                  <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                  <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
                   Remboursé
@@ -128,13 +185,13 @@
 
         <!-- Échéances -->
         <details class="group border-t border-gray-100 dark:border-gray-800">
-          <summary class="flex cursor-pointer items-center gap-2 px-5 py-3 text-xs font-semibold text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <summary class="flex cursor-pointer items-center gap-2 px-4 py-2.5 text-xs font-semibold text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
             <svg class="h-3.5 w-3.5 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
             </svg>
             Voir le détail des échéances ({{ loan.echeances.length }})
           </summary>
-          <div class="border-t border-gray-100 px-5 py-3 dark:border-gray-800">
+          <div class="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
             <div class="space-y-1.5">
               @for (ech of loan.echeances; track ech.id) {
                 @let estPaye = ech.statut === 'PAYE';
@@ -179,7 +236,7 @@
       }
       @empty {
         <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
-          <p class="text-sm text-gray-500 dark:text-gray-400">Aucun remboursement à effectuer</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Aucun remboursement ne correspond aux filtres</p>
         </div>
       }
     }
@@ -188,93 +245,78 @@
   <!-- Modal de paiement -->
   @if (showPayModal(); as _) {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div class="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+      <div class="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900">
         @if (paiementEffectue()) {
-          <div class="flex flex-col items-center py-6 text-center">
-            <span class="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400">
-              <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <div class="flex flex-col items-center py-4 text-center">
+            <span class="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400">
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
             </span>
-            <h3 class="mt-4 text-lg font-bold text-gray-900 dark:text-white">Paiement effectué</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Échéance remboursée pour <strong>{{ selectedLoan()?.motif }}</strong>
-            </p>
-            <button (click)="closePayModal()" class="mt-6 rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700">
-              Fermer
-            </button>
+            <h3 class="mt-3 text-base font-bold text-gray-900 dark:text-white">Paiement effectué</h3>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Échéance remboursée pour <strong>{{ selectedLoan()?.motif }}</strong></p>
+            <button (click)="closePayModal()" class="mt-4 rounded-lg bg-brand-600 px-5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700">Fermer</button>
           </div>
         } @else {
           @let echeance = selectedEcheance();
-          <div class="mb-5 flex items-center justify-between">
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Effectuer un paiement</h3>
-            <button (click)="closePayModal()" class="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
-              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+          <div class="mb-4 flex items-center justify-between">
+            <h3 class="text-base font-bold text-gray-900 dark:text-white">Paiement</h3>
+            <button (click)="closePayModal()" class="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-
-          <div class="mb-5 rounded-xl bg-gray-50 p-4 dark:bg-gray-800/30">
-            <div class="flex items-center justify-between text-sm">
+          <div class="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-800/30 space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
               <span class="text-gray-500 dark:text-gray-400">Prêt</span>
               <span class="font-semibold text-gray-900 dark:text-white">{{ selectedLoan()?.motif }}</span>
             </div>
-            <div class="mt-2 flex items-center justify-between text-sm">
+            <div class="flex items-center justify-between text-xs">
               <span class="text-gray-500 dark:text-gray-400">Reste dû</span>
               <span class="font-semibold text-red-600 dark:text-red-400">{{ selectedLoan()?.resteARembourser | number:'1.0-0' }} FCFA</span>
             </div>
             @if (echeance) {
-              <div class="mt-2 flex items-center justify-between text-sm">
-                <span class="text-gray-500 dark:text-gray-400">Échéance à payer</span>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-gray-500 dark:text-gray-400">Échéance</span>
                 <span class="font-semibold text-gray-900 dark:text-white">{{ echeance.mensualite | number:'1.0-0' }} FCFA</span>
               </div>
-              <div class="mt-1 flex items-center justify-between text-sm">
-                <span class="text-gray-500 dark:text-gray-400">Date échéance</span>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-gray-500 dark:text-gray-400">Date</span>
                 <span class="font-semibold text-gray-900 dark:text-white">{{ echeance.dateEcheancePrevue.substring(0, 10) }}</span>
               </div>
             }
           </div>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Mode de paiement</label>
-              <div class="grid grid-cols-2 gap-2">
-                @for (mode of modesPaiement; track mode) {
-                  <button
-                    (click)="modePaiement.set(mode)"
-                    class="rounded-lg border-2 px-3 py-2 text-xs font-semibold transition-all"
-                    [class.border-brand-600]="modePaiement() === mode"
-                    [class.bg-brand-50]="modePaiement() === mode"
-                    [class.text-brand-700]="modePaiement() === mode"
-                    [class.border-gray-200]="modePaiement() !== mode"
-                    [class.text-gray-600]="modePaiement() !== mode"
-                    [class.hover:border-gray-300]="modePaiement() !== mode"
-                    [class.dark:border-gray-600]="modePaiement() !== mode"
-                    [class.dark:text-gray-300]="modePaiement() !== mode"
-                  >
-                    {{ mode }}
-                  </button>
-                }
-              </div>
+          <div class="mb-4">
+            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Mode de paiement</label>
+            <div class="grid grid-cols-2 gap-1.5">
+              @for (mode of modesPaiement; track mode) {
+                <button (click)="modePaiement.set(mode)"
+                  class="rounded-lg border px-2 py-1.5 text-xs font-semibold transition-all"
+                  [class.border-brand-600]="modePaiement() === mode"
+                  [class.bg-brand-50]="modePaiement() === mode"
+                  [class.text-brand-700]="modePaiement() === mode"
+                  [class.border-gray-200]="modePaiement() !== mode"
+                  [class.text-gray-600]="modePaiement() !== mode"
+                  [class.hover:border-gray-300]="modePaiement() !== mode"
+                  [class.dark:border-gray-600]="modePaiement() !== mode"
+                  [class.dark:text-gray-300]="modePaiement() !== mode">
+                  {{ mode }}
+                </button>
+              }
             </div>
           </div>
-
-          <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button (click)="closePayModal()" class="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
-              Annuler
-            </button>
-            <button
-              (click)="effectuerPaiement()"
+          <div class="flex gap-2 justify-end">
+            <button (click)="closePayModal()" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">Annuler</button>
+            <button (click)="effectuerPaiement()"
               [disabled]="!selectedEcheance() || paiementEnCours()"
-              class="inline-flex items-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 truncate"
-            >
+              class="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95">
               @if (paiementEnCours()) {
-                <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
+                <svg class="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
                 </svg>
-                Paiement...
+                ...
               } @else {
                 Payer {{ selectedEcheance()?.mensualite | number:'1.0-0' }} FCFA
               }
@@ -284,4 +326,5 @@
       </div>
     </div>
   }
+  <app-confirm-modal #confirmModal />
 </div>

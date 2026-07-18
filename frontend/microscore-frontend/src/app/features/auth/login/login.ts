@@ -68,6 +68,11 @@ export class Login {
     this.auth.login(this.email(), this.password()).subscribe({
       next: (res) => {
         this.loading.set(false);
+        if (res.user.mustChangePassword) {
+          this.toast.show('Veuillez changer votre mot de passe temporaire.', 'warning');
+          this.router.navigate(['/change-password']);
+          return;
+        }
         this.toast.show('Connecté en tant que ' + res.user.fullName, 'success');
         const route = res.user.role === 'CLIENT' ? '/client/dashboard' : '/dashboard';
         this.router.navigate([route]);

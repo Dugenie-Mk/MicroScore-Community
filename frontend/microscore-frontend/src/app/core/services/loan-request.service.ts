@@ -2,8 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-
-import { UserService } from './user.service';
+import { Page } from '../models/page.model';
 
 export interface LoanRequestItem {
   id: number;
@@ -14,19 +13,22 @@ export interface LoanRequestItem {
   score: number;
   date: string;
   duree: string;
-  statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE';
+  statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE' | 'ANNULE' | 'EN_COURS' | 'REMBOURSE';
 }
 
 export interface PretApiResponse {
   idPret: number;
   idClient: number;
+  clientNom?: string;
   motif: string;
   montant: number;
   scoreTotal: number;
   dureeRemboursementMois: number;
-  statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE';
+  statut: 'EN_ATTENTE' | 'APPROUVE' | 'REJETE' | 'ANNULE' | 'EN_COURS' | 'REMBOURSE';
   dateEnregistrement: string;
   dateDecision?: string;
+  tauxInteret?: number;
+  typeTaux?: string;
 }
 
 export interface CreerPretPayload {
@@ -39,20 +41,15 @@ export interface CreerPretPayload {
 @Injectable({ providedIn: 'root' })
 export class LoanRequestService {
   private readonly http = inject(HttpClient);
-  private readonly userService = inject(UserService);
   private readonly apiUrl = `${environment.apiUrl}/api/prets`;
 
   readonly loanRequests = signal<LoanRequestItem[]>([]);
-
-  constructor() {
-    this.loadAll();
-  }
 
   private mapPret(p: PretApiResponse): LoanRequestItem {
     return {
       id: p.idPret,
       clientId: p.idClient,
-      clientNom: '',
+      clientNom: p.clientNom || '',
       motif: p.motif || '',
       montant: p.montant,
       score: p.scoreTotal,
@@ -62,24 +59,9 @@ export class LoanRequestService {
     };
   }
 
-  private loadAll(): void {
-    this.http.get<PretApiResponse[]>(this.apiUrl).subscribe({
-      next: (data) => {
-        const items = data.map((p) => this.mapPret(p));
-        this.loanRequests.set(items);
-        for (const item of items) {
-          if (item.clientId > 0) {
-            this.userService.getById(item.clientId).subscribe({
-              next: (user) => {
-                this.loanRequests.update((list) =>
-                  list.map((i) => (i.id === item.id ? { ...i, clientNom: user.fullName } : i))
-                );
-              },
-            });
-          }
-        }
-      },
-      error: () => {},
+  refresh(): void {
+    this.getAllPrets().subscribe({
+      next: (data) => this.loanRequests.set(data.map(this.mapPret)),
     });
   }
 
@@ -87,18 +69,41 @@ export class LoanRequestService {
     return this.http.post<PretApiResponse>(this.apiUrl, payload);
   }
 
-  updateStatus(id: number, newStatus: 'APPROUVE' | 'REJETE'): void {
-    this.http.patch<PretApiResponse>(`${this.apiUrl}/${id}/decision`, { statut: newStatus }).subscribe({
-      next: () => this.loadAll(),
-      error: () => {},
-    });
+  updateStatus(id: number, newStatus: 'APPROUVE' | 'REJETE'): Observable<PretApiResponse> {
+    return this.http.patch<PretApiResponse>(`${this.apiUrl}/${id}/decision`, { statut: newStatus });
+  }
+
+  getById(id: number): Observable<PretApiResponse> {
+    return this.http.get<PretApiResponse>(`${this.apiUrl}/${id}`);
   }
 
   getByClientId(clientId: number): Observable<PretApiResponse[]> {
     return this.http.get<PretApiResponse[]>(`${this.apiUrl}/client/${clientId}`);
   }
 
+  getByClientIdPaginated(clientId: number, page: number = 0, size: number = 10): Observable<Page<PretApiResponse>> {
+    return this.http.get<Page<PretApiResponse>>(`${this.apiUrl}/client/${clientId}/paginated?page=${page}&size=${size}`);
+  }
+
   getAllPrets(): Observable<PretApiResponse[]> {
     return this.http.get<PretApiResponse[]>(this.apiUrl);
+  }
+
+  cancelLoan(idPret: number, clientId: number): Observable<PretApiResponse> {
+    return this.http.patch<PretApiResponse>(`${this.apiUrl}/${idPret}/annuler?clientId=${clientId}`, {});
+  }
+
+  deleteLoan(idPret: number, clientId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${idPret}?clientId=${clientId}`);
+  }
+
+  rechercherPrets(statut: string, motif: string, page: number, size: number, sort?: string, dir?: string, dateDebut?: string, dateFin?: string): Observable<Page<PretApiResponse>> {
+    let url = `${this.apiUrl}/recherche?page=${page}&size=${size}`;
+    if (statut && statut !== 'TOUS') url += `&statut=${statut}`;
+    if (motif) url += `&motif=${encodeURIComponent(motif)}`;
+    if (sort) url += `&sort=${sort},${dir || 'asc'}`;
+    if (dateDebut) url += `&dateDebut=${dateDebut}`;
+    if (dateFin) url += `&dateFin=${dateFin}`;
+    return this.http.get<Page<PretApiResponse>>(url);
   }
 }

@@ -34,7 +34,8 @@ export class Sidebar {
         { label: 'Tableau de bord', route: '/dashboard', icon: 'home', exact: true },
         { label: 'Prêts', route: '/loans', icon: 'document' },
         { label: 'Remboursements', route: '/repayments', icon: 'cash' },
-        { label: 'Scoring', route: '/scoring', icon: 'chart' },
+        { label: 'Paramètres scoring', route: '/scoring/parametres', icon: 'chart' },
+        { label: 'Résultats scoring', route: '/scoring/resultats', icon: 'chart' },
       ],
     },
     {

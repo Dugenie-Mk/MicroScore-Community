@@ -1,8 +1,12 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
+import { LoanRequestService, PretApiResponse } from '../../../../core/services/loan-request.service';
+import { ScoreResultService } from '../../../../core/services/score-result.service';
+import { ToastService } from '../../../../core/services/toast.service';
+import { lastValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-client-dashboard',
@@ -10,28 +14,73 @@ import { AuthService } from '../../../../core/services/auth.service';
   imports: [CommonModule, RouterLink],
   templateUrl: './client-dashboard.html',
 })
-export class ClientDashboard {
+export class ClientDashboard implements OnInit {
   protected readonly auth = inject(AuthService);
-  protected readonly user = computed(() => this.auth.currentUser());
+  private readonly loanService = inject(LoanRequestService);
+  private readonly scoreService = inject(ScoreResultService);
+  private readonly toast = inject(ToastService);
 
-  protected readonly stats = {
-    pretsActifs: 1,
-    montantTotal: 500000,
-    rembourse: 525000,
-    reste: 0,
-    score: 81,
-    procheEcheance: 0,
-  };
+  protected readonly user = computed(() => this.auth.currentUser());
+  protected readonly loans = signal<PretApiResponse[]>([]);
+  protected readonly loading = signal(true);
+
+  protected readonly pretsActifs = computed(() =>
+    this.loans().filter((p) => p.statut === 'EN_COURS' || p.statut === 'APPROUVE').length
+  );
+
+  protected readonly montantTotal = computed(() =>
+    this.loans().filter((p) => p.statut === 'APPROUVE' || p.statut === 'EN_COURS' || p.statut === 'REMBOURSE')
+      .reduce((s, p) => s + p.montant, 0)
+  );
+
+  protected readonly rembourse = computed(() =>
+    this.loans().filter((p) => p.statut === 'REMBOURSE')
+      .reduce((s, p) => s + p.montant, 0)
+  );
+
+  protected readonly reste = computed(() =>
+    Math.max(0, this.montantTotal() - this.rembourse())
+  );
 
   protected readonly progressPct = computed(() =>
-    this.stats.montantTotal > 0
-      ? Math.min(100, Math.round((this.stats.rembourse / this.stats.montantTotal) * 100))
+    this.montantTotal() > 0
+      ? Math.min(100, Math.round((this.rembourse() / this.montantTotal()) * 100))
       : 0
   );
 
-  protected readonly recentActivity = [
-    { type: 'pret', label: 'Prêt approuvé', detail: 'Achat Matériel — 500 000 FCFA', date: '10 Jan 2026' },
-    { type: 'remboursement', label: 'Remboursement effectué', detail: '525 000 FCFA — Virement', date: '10 Mar 2026' },
-    { type: 'alerte', label: 'Échéance à venir', detail: 'Prochain paiement dans 15 jours', date: '25 Juin 2026' },
-  ];
+  protected readonly clientScore = computed(() =>
+    this.scoreService.clientLatestScore()?.scoreTotal ?? 0
+  );
+
+  protected readonly procheEcheance = computed(() =>
+    this.loans().filter((p) => p.statut === 'EN_COURS').length
+  );
+
+  protected readonly recentActivity = computed(() =>
+    this.loans().slice(0, 5).map((p) => ({
+      type: p.statut === 'REMBOURSE' ? 'remboursement' as const : 'pret' as const,
+      label: p.statut === 'REMBOURSE' ? 'Remboursement effectué' : 'Prêt ' + (p.statut === 'EN_ATTENTE' ? 'demandé' : p.statut === 'APPROUVE' ? 'approuvé' : 'en cours'),
+      detail: `${p.motif || 'Prêt'} — ${(p.montant / 1000).toFixed(0)} 000 FCFA`,
+      date: p.dateEnregistrement ? new Date(p.dateEnregistrement).toLocaleDateString('fr-FR') : '',
+    }))
+  );
+
+  async ngOnInit(): Promise<void> {
+    const uid = this.user()?.id;
+    if (!uid) {
+      this.loading.set(false);
+      return;
+    }
+    try {
+      const [loans] = await Promise.all([
+        lastValueFrom(this.loanService.getByClientId(uid)),
+        this.scoreService.loadLatestByClientId(uid),
+      ]);
+      this.loans.set(loans);
+    } catch {
+      this.toast.show('Erreur lors du chargement des données.', 'error');
+    } finally {
+      this.loading.set(false);
+    }
+  }
 }

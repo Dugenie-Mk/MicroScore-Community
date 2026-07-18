@@ -16,6 +16,7 @@ public class PretResponse {
 
     private Long idPret;
     private Long idClient;
+    private String clientNom;
     private String motif;
     private Double scoreTotal;
     private Double montant;
@@ -23,4 +24,6 @@ public class PretResponse {
     private StatutPret statut;
     private LocalDateTime dateEnregistrement;
     private LocalDateTime dateDecision;
+    private Double tauxInteret;
+    private String typeTaux;
 }

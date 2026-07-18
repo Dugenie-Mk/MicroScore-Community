@@ -46,6 +46,12 @@ export class RepaymentService {
     );
   }
 
+  payerEcheances(idPret: number, nombreMois: number): Observable<EcheanceDto[]> {
+    return this.http.post<EcheanceDto[]>(`${this.apiUrl}/payer`, { idPret, nombreMois }).pipe(
+      tap(() => this.refreshTrigger.update((v) => v + 1))
+    );
+  }
+
   marquerRetard(echeanceId: number): Observable<EcheanceDto> {
     return this.http.patch<EcheanceDto>(`${this.apiUrl}/echeances/${echeanceId}/retard`, {});
   }
