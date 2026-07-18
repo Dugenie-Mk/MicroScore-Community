@@ -4,10 +4,6 @@ export const REPAYMENTS_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('../../shared/components/coming-soon/coming-soon').then((m) => m.ComingSoon),
-    data: {
-      title: 'Remboursements',
-      description: 'Échéanciers, enregistrement des paiements et suivi des impayés.',
-    },
+      import('./pages/repayment-list/repayment-list').then((m) => m.RepaymentList),
   },
 ];

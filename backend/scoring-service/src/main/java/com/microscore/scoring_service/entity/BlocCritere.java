@@ -1,0 +1,11 @@
+package com.microscore.scoring_service.entity;
+
+public enum BlocCritere {
+    PROFIL_SOCIODEMOGRAPHIQUE,
+    CAPACITE_REMBOURSEMENT,
+    MONTANT_DUREE,
+    HISTORIQUE_CREDIT,
+    ACTIVITE_ECONOMIQUE,
+    GARANTIES,
+    FACTEURS_COMPORTEMENTAUX
+}

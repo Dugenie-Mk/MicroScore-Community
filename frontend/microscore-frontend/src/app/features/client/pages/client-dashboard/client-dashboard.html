@@ -1,0 +1,151 @@
+<div class="space-y-5">
+  <!-- Greeting + Score -->
+  <div class="rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-5 text-white sm:p-6">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-sm font-medium text-white/70">Bonjour 👋</p>
+        <h1 class="mt-0.5 text-xl font-bold sm:text-2xl">{{ user()?.fullName }}</h1>
+      </div>
+      <div class="flex flex-col items-center">
+        <div class="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-lg font-bold backdrop-blur-sm">
+          {{ clientScore() }}%
+        </div>
+        <span class="mt-1 text-[10px] font-medium uppercase tracking-wider text-white/60">Score</span>
+      </div>
+    </div>
+    <p class="mt-1 text-sm text-white/70">Bienvenue sur votre espace MicroScore</p>
+  </div>
+
+  @if (loading()) {
+    <div class="flex items-center justify-center py-12">
+      <div class="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-brand-500"></div>
+    </div>
+  } @else {
+    <!-- Balance card -->
+    <div class="overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-gray-900 dark:ring-1 dark:ring-gray-800">
+      <div class="p-5">
+        <p class="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Solde restant</p>
+        <p class="mt-1 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white break-all sm:break-normal">{{ reste() | number:'1.0-0' }} <span class="text-sm sm:text-base font-medium text-gray-500 dark:text-gray-400">FCFA</span></p>
+        <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-green-500"></span>
+            <span class="text-gray-600 dark:text-gray-300">Emprunté <strong class="text-gray-900 dark:text-white">{{ montantTotal() | number:'1.0-0' }}</strong></span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <span class="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-brand-500"></span>
+            <span class="text-gray-600 dark:text-gray-300">Remboursé <strong class="text-gray-900 dark:text-white">{{ rembourse() | number:'1.0-0' }}</strong></span>
+          </div>
+        </div>
+      </div>
+      <div class="h-2 w-full bg-gray-100 dark:bg-gray-800">
+        <div class="h-full bg-gradient-to-r from-green-500 to-brand-500 transition-all duration-700" [style.width.%]="progressPct()"></div>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div>
+      <h2 class="mb-3 text-sm font-bold text-gray-900 dark:text-white">Actions</h2>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <a routerLink="/client/loan-request" class="flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white p-4 text-center transition hover:border-brand-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-700">
+          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </span>
+          <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Nouveau prêt</span>
+        </a>
+        <a routerLink="/client/loans" class="flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white p-4 text-center transition hover:border-brand-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-700">
+          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+            </svg>
+          </span>
+          <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Mes prêts</span>
+        </a>
+        <a routerLink="/client/repayments" class="flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white p-4 text-center transition hover:border-brand-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-700">
+          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </span>
+          <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Remboursements</span>
+        </a>
+        <a routerLink="/client/profile" class="flex flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white p-4 text-center transition hover:border-brand-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-700">
+          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+            </svg>
+          </span>
+          <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Mon profil</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Mini cards row -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Prêts actifs</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ pretsActifs() }}</p>
+          </div>
+          <span class="flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+          </span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Échéances</p>
+            <p class="text-xl font-bold text-amber-600 dark:text-amber-400">{{ procheEcheance() }}</p>
+          </div>
+          <span class="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity -->
+    @if (recentActivity().length > 0) {
+      <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+        <h2 class="mb-4 text-sm font-bold text-gray-900 dark:text-white">Activité récente</h2>
+        <div class="space-y-0">
+          @for (item of recentActivity(); track $index; let last = $last) {
+            <div class="relative flex items-start gap-3 pb-4" [class.!pb-0]="last">
+              @if (!last) {
+                <div class="absolute bottom-0 left-[19px] top-9 w-px bg-gray-200 dark:bg-gray-700"></div>
+              }
+              <span class="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                [class.bg-green-100]="item.type === 'remboursement'"
+                [class.text-green-600]="item.type === 'remboursement'"
+                [class.bg-blue-100]="item.type === 'pret'"
+                [class.text-blue-600]="item.type === 'pret'"
+              >
+                @if (item.type === 'remboursement') {
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                } @else {
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                  </svg>
+                }
+              </span>
+              <div class="flex-1 min-w-0 pt-1.5">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.label }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ item.detail }}</p>
+              </div>
+              <span class="shrink-0 pt-1.5 text-xs text-gray-400 dark:text-gray-500">{{ item.date }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+</div>

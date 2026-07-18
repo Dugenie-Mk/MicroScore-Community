@@ -1,0 +1,10 @@
+$kind: http-request
+name: Créer paramètre - nbrPretEnCours
+url: ""
+method: POST
+body:
+  type: json
+  content: '{"blocCritere": "HISTORIQUE_CREDIT", "nomCritere": "Nombre de prêts en
+    cours", "poidsCritere": 5.0, "actif": true, "description": "Prêts actifs
+    simultanés"}'
+order: 8000

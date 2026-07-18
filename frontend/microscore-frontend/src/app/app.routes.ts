@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { authGuard } from './core/guards/auth.guard';
+import { roleGuard } from './core/guards/role.guard';
 import { MainLayout } from './layout/main-layout/main-layout';
 
 export const routes: Routes = [
@@ -9,9 +10,13 @@ export const routes: Routes = [
     loadChildren: () => import('./features/auth/auth.routes').then((m) => m.AUTH_ROUTES),
   },
   {
+    path: 'change-password',
+    loadComponent: () => import('./features/auth/change-password/change-password').then((m) => m.ChangePasswordComponent),
+  },
+  {
     path: '',
     component: MainLayout,
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard('GESTIONNAIRE', 'ADMIN')],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       {
@@ -43,6 +48,11 @@ export const routes: Routes = [
           import('./features/profile/profile.routes').then((m) => m.PROFILE_ROUTES),
       },
     ],
+  },
+  {
+    path: 'client',
+    canActivate: [authGuard, roleGuard('CLIENT')],
+    loadChildren: () => import('./features/client/client.routes').then((m) => m.CLIENT_ROUTES),
   },
   { path: '**', redirectTo: '' },
 ];

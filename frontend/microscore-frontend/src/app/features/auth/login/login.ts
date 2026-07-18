@@ -3,6 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
+
+interface DemoAccount {
+  label: string;
+  email: string;
+  password: string;
+  role: string;
+}
 
 @Component({
   selector: 'app-login',
@@ -13,12 +21,35 @@ import { AuthService } from '../../../core/services/auth.service';
 export class Login {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   protected readonly email = signal('');
   protected readonly password = signal('');
   protected readonly showPassword = signal(false);
   protected readonly loading = signal(false);
   protected readonly error = signal('');
+
+  protected readonly demoAccounts: DemoAccount[] = [
+    { label: 'Simo Benoît (Admin)', email: 'simo.b@microscore.cm', password: 'admin123', role: 'Admin' },
+    { label: 'Djoko Arielle (Admin)', email: 'arielle.d@microscore.cm', password: 'admin123', role: 'Admin' },
+    { label: 'Nana Djibril (Gestionnaire)', email: 'nana.d@microscore.cm', password: 'gest123', role: 'Gestionnaire' },
+    { label: 'Eyanga Rachel (Gestionnaire)', email: 'rachel.e@microscore.cm', password: 'gest123', role: 'Gestionnaire' },
+    { label: 'Kambou Prunelle (Client)', email: 'prunelle@gmail.com', password: 'client123', role: 'Client' },
+    { label: 'Anafack Jules (Client)', email: 'jules@gmail.com', password: 'client123', role: 'Client' },
+    { label: 'Tchinda Paul (Client)', email: 'paul.t@email.com', password: 'client123', role: 'Client' },
+  ];
+
+  protected readonly demoOpen = signal(false);
+
+  protected toggleDemo(): void {
+    this.demoOpen.update((v) => !v);
+  }
+
+  protected selectDemo(account: DemoAccount): void {
+    this.email.set(account.email);
+    this.password.set(account.password);
+    this.demoOpen.set(false);
+  }
 
   protected togglePassword(): void {
     this.showPassword.update((v) => !v);
@@ -34,10 +65,25 @@ export class Login {
 
     this.loading.set(true);
 
-    setTimeout(() => {
-      this.auth.setToken('demo-token');
-      this.loading.set(false);
-      this.router.navigate(['/dashboard']);
-    }, 600);
+    this.auth.login(this.email(), this.password()).subscribe({
+      next: (res) => {
+        this.loading.set(false);
+        if (res.user.mustChangePassword) {
+          this.toast.show('Veuillez changer votre mot de passe temporaire.', 'warning');
+          this.router.navigate(['/change-password']);
+          return;
+        }
+        this.toast.show('Connecté en tant que ' + res.user.fullName, 'success');
+        const route = res.user.role === 'CLIENT' ? '/client/dashboard' : '/dashboard';
+        this.router.navigate([route]);
+      },
+      error: (err) => {
+        this.loading.set(false);
+        const msg = err.status === 0
+          ? 'Impossible de contacter le serveur. Vérifiez que les services backend sont démarrés.'
+          : err.error?.message || 'Email ou mot de passe incorrect.';
+        this.error.set(msg);
+      },
+    });
   }
 }

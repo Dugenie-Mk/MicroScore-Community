@@ -1,0 +1,10 @@
+$kind: http-request
+name: Créer paramètre - anciennete
+url: ""
+method: POST
+body:
+  type: json
+  content: "{\"blocCritere\": \"HISTORIQUE_CREDIT\", \"nomCritere\": \"Ancienneté
+    client microfinance\", \"poidsCritere\": 5.0, \"actif\": true,
+    \"description\": \"Durée relation avec l'institution\"}"
+order: 10000

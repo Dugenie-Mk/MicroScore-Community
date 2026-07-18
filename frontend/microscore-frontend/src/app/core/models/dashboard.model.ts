@@ -7,7 +7,7 @@ export interface KpiCard {
   accent: 'brand' | 'sky' | 'amber' | 'violet';
 }
 
-export type LoanStatus = 'EN_ATTENTE' | 'APPROUVE' | 'REJETE' | 'EN_COURS';
+export type LoanStatus = 'EN_ATTENTE' | 'APPROUVE' | 'REJETE' | 'ANNULE' | 'EN_COURS' | 'REMBOURSE';
 
 export interface LoanRequest {
   id: string;

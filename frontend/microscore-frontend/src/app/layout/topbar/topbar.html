@@ -54,10 +54,10 @@
         class="flex items-center gap-2 rounded-lg p-1 pr-2 transition hover:bg-gray-100 dark:hover:bg-gray-800"
         [attr.aria-expanded]="profileOpen()"
       >
-        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">GE</span>
+        <span class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">{{ getInitials() }}</span>
         <span class="hidden leading-tight text-left sm:block">
-          <span class="block text-sm font-semibold text-gray-900 dark:text-white">Gestionnaire</span>
-          <span class="block text-xs text-gray-500 dark:text-gray-400">Microfinance</span>
+          <span class="block text-sm font-semibold text-gray-900 dark:text-white">{{ getRoleLabel() }}</span>
+          <span class="block text-xs text-gray-500 dark:text-gray-400">{{ auth.currentUser()?.email }}</span>
         </span>
         <svg class="hidden h-4 w-4 text-gray-400 transition-transform duration-200 sm:block" [class.rotate-180]="profileOpen()" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
       </button>
@@ -73,10 +73,10 @@
         (click)="$event.stopPropagation()"
       >
         <div class="flex items-center gap-3 border-b border-gray-100 px-3 py-3 dark:border-gray-800">
-          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">GE</span>
+          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">{{ getInitials() }}</span>
           <div class="min-w-0">
-            <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">Gestionnaire</p>
-            <p class="truncate text-xs text-gray-500 dark:text-gray-400">gestionnaire&#64;microscore.cm</p>
+            <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ auth.currentUser()?.fullName }}</p>
+            <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ auth.currentUser()?.email }}</p>
           </div>
         </div>
 
